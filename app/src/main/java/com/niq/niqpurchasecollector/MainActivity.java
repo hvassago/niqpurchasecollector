@@ -47,18 +47,22 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Combine permisos de audio y almacenamiento
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11 y superior: Solicitar acceso a todos los archivos
-            if (!Environment.isExternalStorageManager()) {
+            // Android 11 y superior: Solicitar acceso a todos los archivos y micrófono
+            if (!Environment.isExternalStorageManager() || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
                 startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
+                // También solicitar permiso de micrófono, si es necesario
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1001);
             } else {
                 createDirectory();
             }
         } else {
             // Android 7 a Android 10
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO}, 1);
             } else {
                 createDirectory();
             }

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -10,10 +12,10 @@
         android:id="@+id/tvRecordingStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Presiona el botón para grabar"
-        android:textSize="18sp"
         android:gravity="center"
-        android:padding="8dp" />
+        android:padding="8dp"
+        android:text="Presiona el botón para grabar"
+        android:textSize="18sp" />
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -23,24 +25,57 @@
         android:visibility="gone"
         android:layout_marginVertical="16dp" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+    <RelativeLayout
+        android:layout_width="171dp"
+        android:layout_height="113dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvRecordingStatus">
 
+        <ImageButton
+            android:id="@+id/imageButton"
+            android:layout_width="130dp"
+            android:layout_height="87dp"
+            app:srcCompat="@android:drawable/ic_lock_silent_mode_off" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="175dp"
+        android:layout_height="129dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvRecordingStatus">
+
+        <ImageButton
+            android:id="@+id/imageButton5"
+            android:layout_width="144dp"
+            android:layout_height="87dp"
+            app:srcCompat="@android:drawable/presence_busy" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="98dp"
+        android:gravity="center"
+        android:orientation="horizontal">
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Enviar"
+            android:layout_marginEnd="8dp"
             android:enabled="false"
-            android:layout_marginEnd="8dp" />
+            android:text="Enviar" />
 
         <Button
             android:id="@+id/btnDiscard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Descartar" />
-    </LinearLayout>
+    </RelativeLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

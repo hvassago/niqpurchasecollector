@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/white"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/app_bar_main">
 
@@ -36,6 +37,7 @@
             android:textAlignment="center"
             android:textSize="20sp"
             android:textStyle="bold"
+            android:textColor="@color/primaryColor"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -46,33 +48,32 @@
             android:layout_height="158dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="42dp"
-            android:background="#D4D5D5"
+            android:background="@drawable/rounded_background"
+            android:elevation="4dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView1">
 
             <ImageButton
                 android:id="@+id/imageButton1"
-                android:layout_width="351dp"
+                android:layout_width="match_parent"
                 android:layout_height="124dp"
                 android:adjustViewBounds="false"
-                android:clickable="false"
-                android:backgroundTint="#D5D6D6"
+                android:background="@null"
                 android:scaleType="fitCenter"
+                android:padding="16dp"
                 app:srcCompat="@drawable/camara_dslr" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton1"
-                android:clickable="false"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
                 android:text="Enviar desde cámara"
                 android:textAlignment="center"
-                android:textColor="#000000"
+                android:textColor="@color/black"
                 android:textSize="16sp" />
         </RelativeLayout>
-
 
         <RelativeLayout
             android:id="@+id/relativeLayoutGallery"
@@ -80,18 +81,19 @@
             android:layout_height="158dp"
             android:layout_marginTop="40dp"
             android:layout_marginEnd="16dp"
-            android:background="#D4D5D5"
+            android:background="@drawable/rounded_background"
+            android:elevation="4dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView1">
 
             <ImageButton
                 android:id="@+id/imageButton2"
-                android:layout_width="351dp"
+                android:layout_width="match_parent"
                 android:layout_height="124dp"
                 android:adjustViewBounds="false"
-                android:clickable="false"
-                android:backgroundTint="#D5D6D6"
+                android:background="@null"
                 android:scaleType="fitCenter"
+                android:padding="16dp"
                 app:srcCompat="@drawable/factura" />
 
             <TextView
@@ -99,11 +101,10 @@
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton2"
                 android:layout_marginTop="8dp"
-                android:clickable="false"
                 android:gravity="center"
                 android:text="Enviar desde galería"
                 android:textAlignment="center"
-                android:textColor="#000000"
+                android:textColor="@color/black"
                 android:textSize="16sp" />
         </RelativeLayout>
 
@@ -113,17 +114,19 @@
             android:layout_height="158dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="40dp"
-            android:background="#D4D5D5"
+            android:background="@drawable/rounded_background"
+            android:elevation="4dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/relativeLayoutCamera">
 
             <ImageButton
                 android:id="@+id/imageButton3"
-                android:layout_width="351dp"
+                android:layout_width="match_parent"
                 android:layout_height="124dp"
                 android:adjustViewBounds="false"
-                android:backgroundTint="#D5D6D6"
+                android:background="@null"
                 android:scaleType="fitCenter"
+                android:padding="16dp"
                 app:srcCompat="@drawable/mensaje_de_voz" />
 
             <TextView
@@ -134,7 +137,7 @@
                 android:gravity="center"
                 android:text="Enviar nota de voz"
                 android:textAlignment="center"
-                android:textColor="#000000"
+                android:textColor="@color/black"
                 android:textSize="16sp" />
         </RelativeLayout>
 
@@ -144,17 +147,19 @@
             android:layout_height="158dp"
             android:layout_marginTop="42dp"
             android:layout_marginEnd="16dp"
-            android:background="#D4D5D5"
+            android:background="@drawable/rounded_background"
+            android:elevation="4dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/relativeLayoutGallery">
 
             <ImageButton
                 android:id="@+id/imageButton4"
-                android:layout_width="351dp"
+                android:layout_width="match_parent"
                 android:layout_height="124dp"
                 android:adjustViewBounds="false"
-                android:backgroundTint="#D5D6D6"
+                android:background="@null"
                 android:scaleType="fitCenter"
+                android:padding="16dp"
                 app:srcCompat="@drawable/tipo_de_archivo" />
 
             <TextView
@@ -165,7 +170,7 @@
                 android:gravity="center"
                 android:text="Enviar otro documento"
                 android:textAlignment="center"
-                android:textColor="#000000"
+                android:textColor="@color/black"
                 android:textSize="16sp" />
         </RelativeLayout>
 

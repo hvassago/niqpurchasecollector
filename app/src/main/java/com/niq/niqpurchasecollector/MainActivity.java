@@ -43,6 +43,11 @@ import android.provider.Settings;
 import android.provider.MediaStore;
 import android.widget.RelativeLayout;
 
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.WorkRequest;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -57,13 +62,14 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_GALLERY = 3001;
 
     private MediaRecorder mediaRecorder;
+    private static final int REQUEST_CODE_FILE_PICKER = 4001;
     private String audioFilePath;
 
     @SuppressLint("QueryPermissionsNeeded")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        scheduleFTPWorker();
         // setContentView(R.layout.activity_main);
 
         // Combine permisos de audio y almacenamiento
@@ -151,37 +157,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRecording() {
-        try {
-            // Ruta específica del directorio
-            File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
-
-            // Crear el directorio si no existe
-            if (!storageDir.exists() && !storageDir.mkdirs()) {
-                Log.e("Directorio", "Error al crear directorio: " + storageDir.getAbsolutePath());
-                Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Nombre único para el archivo de audio
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String fileName = "AUDIO_" + timeStamp + ".mp3"; // Formato de archivo
-            File audioFile = new File(storageDir, fileName);
-            audioFilePath = audioFile.getAbsolutePath(); // Guardar la ruta del archivo
-
-            // Configurar MediaRecorder
-            mediaRecorder = new MediaRecorder();
-            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC); // Fuente: micrófono
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4); // Formato de salida
-            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); // Codificación
-            mediaRecorder.setOutputFile(audioFilePath); // Archivo de salida
-            mediaRecorder.prepare(); // Preparar el MediaRecorder
-            mediaRecorder.start(); // Iniciar la grabación
-
-            Toast.makeText(this, "Grabación iniciada", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error al iniciar la grabación", Toast.LENGTH_SHORT).show();
-        }
+        Intent screenRecorderIntent = new Intent(MainActivity.this, activity_voice_recorder.class);
+        startActivity(screenRecorderIntent);
     }
 
     private void stopRecording() {
@@ -248,7 +225,64 @@ public class MainActivity extends AppCompatActivity {
                 Uri imageUri = data.getData();
                 saveImageGalleryToDirectory(imageUri, 0); // Usar índice 0 para una imagen única
             }
+        } if (requestCode == REQUEST_CODE_FILE_PICKER && resultCode == RESULT_OK && data != null) {
+            Uri fileUri = data.getData();
+            if (fileUri != null) {
+                saveFileToStorage(fileUri);
+            }
         }
+        executeFTPNow();
+    }
+
+    private void saveFileToStorage(Uri fileUri) {
+        try {
+            File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+
+            // Crear la carpeta si no existe
+            if (!storageDir.exists() && !storageDir.mkdirs()) {
+                Log.e("Directorio", "Error al crear directorio: " + storageDir.getAbsolutePath());
+                Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Obtener el nombre del archivo original
+            String fileName = "FILE_" + System.currentTimeMillis() + "." +
+                    getFileExtension(fileUri);
+            File newFile = new File(storageDir, fileName);
+
+            // Copiar contenido del archivo seleccionado
+            InputStream inputStream = getContentResolver().openInputStream(fileUri);
+            OutputStream outputStream = new FileOutputStream(newFile);
+
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, length);
+            }
+
+            inputStream.close();
+            outputStream.close();
+
+            Toast.makeText(this, "Archivo guardado en: " + newFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+            Log.d("ArchivoGuardado", "Archivo guardado en: " + newFile.getAbsolutePath());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String getFileExtension(Uri uri) {
+        String extension = null;
+        try {
+            String mimeType = getContentResolver().getType(uri);
+            if (mimeType != null) {
+                extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+            }
+        } catch (Exception e) {
+            Log.e("EXTENSION_ERROR", "No se pudo obtener la extensión del archivo", e);
+        }
+        return (extension != null) ? extension : "dat"; // Si no se encuentra la extensión, usar ".dat"
     }
 
     private void saveImageGalleryToDirectory(Uri imageUri, int index) {
@@ -340,6 +374,16 @@ public class MainActivity extends AppCompatActivity {
 
         RelativeLayout relativeLayoutVoice = findViewById(R.id.relativeLayoutVoice);
         relativeLayoutVoice.setOnClickListener(v -> startRecording());
+
+        RelativeLayout relativeLayoutOther = findViewById(R.id.relativeLayoutOther);
+        relativeLayoutOther.setOnClickListener(v -> openFilePicker()); // ⬅️ Agregamos el evento aquí
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*"); // Permite seleccionar cualquier tipo de archivo
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(Intent.createChooser(intent, "Selecciona un archivo"), REQUEST_CODE_FILE_PICKER);
     }
 
     private void handleIntent() {
@@ -407,5 +451,18 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         return NavigationUI.navigateUp(navController, mAppBarConfiguration)
                 || super.onSupportNavigateUp();
+    }
+
+    private void scheduleFTPWorker() {
+        WorkRequest ftpWorkRequest = new PeriodicWorkRequest.Builder(FTPWorker.class, 1, TimeUnit.HOURS)
+                .build();
+
+        WorkManager.getInstance(this).enqueue(ftpWorkRequest);
+    }
+
+    private void executeFTPNow() {
+        WorkRequest ftpWorkRequest = new OneTimeWorkRequest.Builder(FTPWorker.class).build();
+        WorkManager.getInstance(this).enqueue(ftpWorkRequest);
+        Toast.makeText(this, "Tarea de FTP ejecutándose...", Toast.LENGTH_SHORT).show();
     }
 }

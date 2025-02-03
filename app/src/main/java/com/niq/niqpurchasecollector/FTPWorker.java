@@ -1,6 +1,4 @@
-// FTPWorker.java actualizado
 package com.niq.niqpurchasecollector;
-
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -25,10 +23,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FTPWorker extends Worker {
 
     private static final String TAG = "FTPWorker";
-    private static final String FTP_HOST = "ftpupload.net";
-    private static final String FTP_USER = "if0_38231474";
-    private static final String FTP_PASS = "QX5tp0VVM3P";
-    private static final String REMOTE_PATH = "/niqpurchasecollector/";
+    private static final String FTP_HOST = BuildConfig.FTP_HOST;//extraer de gradle.properties
+    private static final String FTP_USER = BuildConfig.FTP_USER;//extraer de gradle.properties
+    private static final String FTP_PASS = BuildConfig.FTP_PASS;//extraer de gradle.properties
+    private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH;//extraer de gradle.properties
 
     private static final AtomicBoolean isRunning = new AtomicBoolean(false);
 

@@ -14,6 +14,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "FTP_HOST", "\"${project.findProperty("FTP_HOST") ?: ""}\"")
+        buildConfigField("String", "REMOTE_PATH", "\"${project.findProperty("REMOTE_PATH") ?: ""}\"")
+        buildConfigField("String", "FTP_USER", "\"${project.findProperty("FTP_USER") ?: ""}\"")
+        buildConfigField("String", "FTP_PASS", "\"${project.findProperty("FTP_PASS") ?: ""}\"")
+        buildFeatures {
+            buildConfig = true
+        }
     }
 
     buildTypes {

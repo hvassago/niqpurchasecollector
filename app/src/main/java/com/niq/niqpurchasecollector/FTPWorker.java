@@ -11,6 +11,8 @@ import androidx.work.WorkManager;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPSClient; // Cambiado a FTPSClient
 
 import java.io.File;
@@ -23,10 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FTPWorker extends Worker {
 
     private static final String TAG = "FTPWorker";
-    private static final String FTP_HOST = "ftp.drivehq.com";
-    private static final String FTP_USER = "simonese";
-    private static final String FTP_PASS = "Darius96005744";
-    private static final String REMOTE_PATH = "/drivehqshare/tttheenry/GroupWrite/";
+    private static final String FTP_HOST = "ftpupload.net";
+    private static final String FTP_USER = "if0_38231474";
+    private static final String FTP_PASS = "QX5tp0VVM3P";
+    private static final String REMOTE_PATH = "/niqpurchasecollector/";
 
     private static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
@@ -37,26 +39,9 @@ public class FTPWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        WorkManager workManager = WorkManager.getInstance(getApplicationContext());
+        Log.d(TAG, "Entrando en doWork()");
 
-        try {
-            // Verificar si ya hay otro Worker en ejecución
-            List<WorkInfo> workInfos = workManager.getWorkInfosForUniqueWork("FTPWorkerOneTime").get();
-            for (WorkInfo workInfo : workInfos) {
-                if (workInfo.getState() == WorkInfo.State.RUNNING) {
-                    Log.d(TAG, "Tarea ya en ejecución. Cancelando nueva instancia.");
-                    return Result.success();
-                }
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            Log.e(TAG, "Error verificando estado del Worker", e);
-        }
-
-        // Control de concurrencia con AtomicBoolean
-        if (!isRunning.compareAndSet(false, true)) {
-            Log.d(TAG, "Tarea ya en ejecución.");
-            return Result.success();
-        }
+        FTPClient ftpClient = null;
 
         try {
             File folder = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
@@ -71,52 +56,66 @@ public class FTPWorker extends Worker {
                 return Result.success();
             }
 
-            FTPSClient ftpClient = new FTPSClient();
+            boolean useFTPS = true; // Intentar primero con FTPS
+
             try {
-                // Conectar y configurar FTPS
+                ftpClient = new FTPSClient();
                 ftpClient.connect(FTP_HOST, 21);
-                Log.d(TAG, "Respuesta connect: " + ftpClient.getReplyString());
+                Log.d(TAG, "Respuesta connect (FTPS): " + ftpClient.getReplyString());
 
                 if (!ftpClient.login(FTP_USER, FTP_PASS)) {
-                    Log.e(TAG, "Login fallido: " + ftpClient.getReplyString());
+                    Log.e(TAG, "Login fallido (FTPS): " + ftpClient.getReplyString());
                     return Result.failure();
                 }
-                Log.d(TAG, "Login exitoso: " + ftpClient.getReplyString());
+                Log.d(TAG, "Login exitoso (FTPS): " + ftpClient.getReplyString());
 
-                // Configurar cifrado
-                ftpClient.execPROT("P");
-                ftpClient.execPBSZ(0);
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
+                // Configurar cifrado si es FTPS
+                ((FTPSClient) ftpClient).execPROT("P");
+                ((FTPSClient) ftpClient).execPBSZ(0);
 
-                for (File file : files) {
-                    if (uploadFile(ftpClient, file)) {
-                        boolean deleted = file.delete();
-                        Log.d(TAG, "Archivo " + file.getName() + (deleted ? " eliminado" : " no eliminado"));
-                    } else {
-                        Log.e(TAG, "Error al subir: " + file.getName());
-                    }
-                }
-
-                ftpClient.logout();
             } catch (IOException e) {
-                Log.e(TAG, "Error FTP: " + e.getMessage(), e);
-                return Result.failure();
-            } finally {
-                try {
-                    ftpClient.disconnect();
-                } catch (IOException e) {
-                    Log.e(TAG, "Error al desconectar: " + e.getMessage());
+                Log.w(TAG, "El servidor no admite FTPS. Probando con FTP no seguro.");
+                useFTPS = false;
+                ftpClient = new FTPClient();
+                ftpClient.connect(FTP_HOST, 21);
+                Log.d(TAG, "Respuesta connect (FTP): " + ftpClient.getReplyString());
+
+                if (!ftpClient.login(FTP_USER, FTP_PASS)) {
+                    Log.e(TAG, "Login fallido (FTP): " + ftpClient.getReplyString());
+                    return Result.failure();
+                }
+                Log.d(TAG, "Login exitoso (FTP): " + ftpClient.getReplyString());
+            }
+
+            ftpClient.enterLocalPassiveMode();
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+            // Subir los archivos
+            for (File file : files) {
+                if (uploadFile(ftpClient, file)) {
+                    boolean deleted = file.delete();
+                    Log.d(TAG, "Archivo " + file.getName() + (deleted ? " eliminado" : " no eliminado"));
+                } else {
+                    Log.e(TAG, "Error al subir: " + file.getName());
                 }
             }
-            return Result.success();
+
+            ftpClient.logout();
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error FTP: " + e.getMessage(), e);
+            return Result.failure();
         } finally {
-            isRunning.set(false);
+            try {
+                if (ftpClient != null) ftpClient.disconnect();
+            } catch (IOException e) {
+                Log.e(TAG, "Error al desconectar: " + e.getMessage());
+            }
         }
+        return Result.success();
     }
 
-
-    private boolean uploadFile(FTPSClient ftpClient, File file) { // Cambiado a FTPSClient
+    private boolean uploadFile(FTPClient ftpClient, File file) {
         try (FileInputStream fis = new FileInputStream(file)) {
             boolean success = ftpClient.storeFile(REMOTE_PATH + file.getName(), fis);
             Log.d(TAG, "Subir " + file.getName() + ": " + (success ? "Éxito" : "Falló"));
@@ -126,4 +125,5 @@ public class FTPWorker extends Worker {
             return false;
         }
     }
+
 }

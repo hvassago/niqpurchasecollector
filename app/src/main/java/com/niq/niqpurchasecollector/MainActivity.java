@@ -610,34 +610,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scheduleFTPWorker() {
-        WorkRequest ftpWorkRequest = new PeriodicWorkRequest.Builder(FTPWorker.class, 1, TimeUnit.HOURS)
+        PeriodicWorkRequest ftpWorkRequest = new PeriodicWorkRequest.Builder(FTPWorker.class, 1, TimeUnit.HOURS)
                 .build();
-
+        Log.d("scheduleFTPWorker()", "Programando tarea FTP");
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "FTPWorkerJob",
-                ExistingPeriodicWorkPolicy.KEEP, // Si ya existe una instancia no la vuecve a crear
-                (PeriodicWorkRequest) ftpWorkRequest
+                ExistingPeriodicWorkPolicy.KEEP, // Mantiene el temporizador si ya existe
+                ftpWorkRequest
         );
     }
 
 
     private void executeFTPNow() {
         WorkManager workManager = WorkManager.getInstance(this);
+        Log.d("executeFTPNow()", "Ejecutando");
 
-        workManager.getWorkInfosForUniqueWorkLiveData("FTPWorkerOneTime")
-                .observeForever(workInfos -> {
-                    for (WorkInfo workInfo : workInfos) {
-                        if (workInfo.getState() == WorkInfo.State.RUNNING ||
-                                workInfo.getState() == WorkInfo.State.ENQUEUED) {
-                            Log.d("FTPWorker", "Ya hay una tarea en ejecución.");
-                            return; // Evita crear otra instancia si ya está en proceso
-                        }
-                    }
+        // Crear la tarea inmediata con un pequeño retraso para asegurar su encolamiento
+        OneTimeWorkRequest ftpWorkRequest = new OneTimeWorkRequest.Builder(FTPWorker.class)
+                .setInitialDelay(1, TimeUnit.SECONDS) // Pequeño retraso para evitar problemas de encolamiento
+                .build();
 
-                    WorkRequest ftpWorkRequest = new OneTimeWorkRequest.Builder(FTPWorker.class).build();
-                    workManager.enqueueUniqueWork("FTPWorkerOneTime", ExistingWorkPolicy.KEEP, (OneTimeWorkRequest) ftpWorkRequest);
-                    Log.d("FTPWorker", "Tarea de FTP encolada correctamente.");
-                });
+        workManager.enqueueUniqueWork("FTPWorkerOneTime", ExistingWorkPolicy.REPLACE, ftpWorkRequest);
+        Log.d("FTPWorker", "Tarea de FTP ejecutándose inmediatamente...");
+
+        // Reiniciar el temporizador de ejecución periódica
+        scheduleFTPWorker();
     }
-
 }

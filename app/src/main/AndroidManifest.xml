@@ -64,6 +64,8 @@
                 <data android:mimeType="text/plain"/>
             </intent-filter>
         </activity>
+        <service android:name="androidx.work.impl.background.systemjob.SystemJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"/>
     </application>
 
 </manifest>

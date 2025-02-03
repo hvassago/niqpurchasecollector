@@ -27,7 +27,6 @@ public class FTPWorker extends Worker {
     private static final String FTP_USER = BuildConfig.FTP_USER;//extraer de gradle.properties
     private static final String FTP_PASS = BuildConfig.FTP_PASS;//extraer de gradle.properties
     private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH;//extraer de gradle.properties
-
     private static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public FTPWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {

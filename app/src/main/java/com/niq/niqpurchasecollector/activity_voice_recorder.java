@@ -1,5 +1,7 @@
 package com.niq.niqpurchasecollector;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.*;
 import android.os.*;
 import android.util.Log;
@@ -25,6 +27,7 @@ public class activity_voice_recorder extends AppCompatActivity {
     private Handler timerHandler = new Handler();
     private long totalRecordedTime = 0;
     private long pauseDuration = 0;
+    private String smsId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +51,9 @@ public class activity_voice_recorder extends AppCompatActivity {
         btnSend.setOnClickListener(v -> saveRecording());
         btnDiscard.setOnClickListener(v -> discardRecording());
         btnBackToMenu.setOnClickListener(v -> exitRecording());
+
+        SharedPreferences sharedPreferences = getSharedPreferences("ConfigTienda", MODE_PRIVATE);
+        smsId = sharedPreferences.getString("smsid", "");
 
     }
 
@@ -140,7 +146,7 @@ public class activity_voice_recorder extends AppCompatActivity {
 
     private void playRecording() {
         if (recordedFile == null || !recordedFile.exists()) {
-            Toast.makeText(this, "Error: Archivo no encontrado", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error: Archivo no encontrado", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -157,13 +163,13 @@ public class activity_voice_recorder extends AppCompatActivity {
             mediaPlayer.start();
             btnPlay.setImageResource(android.R.drawable.ic_media_pause);
         } catch (IOException e) {
-            Toast.makeText(this, "Error al reproducir", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error al reproducir", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void saveRecording() {
         if (recordedFile == null || !recordedFile.exists()) {
-            Toast.makeText(this, "Error: No hay grabación para guardar", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error: No hay grabación para guardar", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -172,20 +178,23 @@ public class activity_voice_recorder extends AppCompatActivity {
 
         // 🛠️ Crear la carpeta si no existe
         if (!storageDir.exists() && !storageDir.mkdirs()) {
-            Toast.makeText(this, "Error al crear carpeta", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error al crear carpeta", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 📌 Crear el archivo final con timestamp
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-        File finalFile = new File(storageDir, "AUDIO_" + timeStamp + ".mp3");
-
+        // Crear el archivo final con timestamp
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+        File finalFile = new File(storageDir, smsId + "_" + timeStamp + ".mp3");
         try {
-            // 🔥 Copiar archivo en lugar de usar renameTo()
+            // Copiar archivo en lugar de usar renameTo()
             copyFile(recordedFile, finalFile);
-            Toast.makeText(this, "Guardado en: " + finalFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Intent ftpIntent = new Intent(activity_voice_recorder.this, MainActivity.class);
+            ftpIntent.putExtra("TRIGGER_FTP", true);
+            startActivity(ftpIntent);
+            finish();
+            //Toast.makeText(this, "Guardado en: " + finalFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
-            Toast.makeText(this, "Error al guardar archivo", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error al guardar archivo", Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
     }

@@ -61,7 +61,8 @@
                 android:background="@null"
                 android:scaleType="fitCenter"
                 android:padding="16dp"
-                app:srcCompat="@drawable/camara_dslr" />
+                app:srcCompat="@drawable/camara_dslr"
+                android:clickable="false"/>
 
             <TextView
                 android:layout_width="match_parent"
@@ -72,7 +73,8 @@
                 android:text="Enviar desde cámara"
                 android:textAlignment="center"
                 android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:clickable="false"/>
         </RelativeLayout>
 
         <RelativeLayout
@@ -94,7 +96,8 @@
                 android:background="@null"
                 android:scaleType="fitCenter"
                 android:padding="16dp"
-                app:srcCompat="@drawable/factura" />
+                app:srcCompat="@drawable/factura"
+                android:clickable="false" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -105,7 +108,8 @@
                 android:text="Enviar desde galería"
                 android:textAlignment="center"
                 android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:clickable="false" />
         </RelativeLayout>
 
         <RelativeLayout
@@ -127,7 +131,8 @@
                 android:background="@null"
                 android:scaleType="fitCenter"
                 android:padding="16dp"
-                app:srcCompat="@drawable/mensaje_de_voz" />
+                app:srcCompat="@drawable/mensaje_de_voz"
+                android:clickable="false" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -138,7 +143,8 @@
                 android:text="Enviar nota de voz"
                 android:textAlignment="center"
                 android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:clickable="false" />
         </RelativeLayout>
 
         <RelativeLayout
@@ -160,7 +166,8 @@
                 android:background="@null"
                 android:scaleType="fitCenter"
                 android:padding="16dp"
-                app:srcCompat="@drawable/tipo_de_archivo" />
+                app:srcCompat="@drawable/tipo_de_archivo"
+                android:clickable="false" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -171,7 +178,8 @@
                 android:text="Enviar otro documento"
                 android:textAlignment="center"
                 android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:clickable="false" />
         </RelativeLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

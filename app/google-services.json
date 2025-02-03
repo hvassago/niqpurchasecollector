@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278821083645",
+    "project_id": "niq-purchase-collector",
+    "storage_bucket": "niq-purchase-collector.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278821083645:android:070053877a13fb6c5e2194",
+        "android_client_info": {
+          "package_name": "com.niq.niqpurchasecollector"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZIDq03GLp2xa7aFNKhR3yfx9IfOG1QFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

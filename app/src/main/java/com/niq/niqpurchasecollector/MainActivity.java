@@ -1,6 +1,7 @@
 package com.niq.niqpurchasecollector;
 
 import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.net.Uri;
@@ -34,6 +35,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -43,11 +46,17 @@ import android.provider.Settings;
 import android.provider.MediaStore;
 import android.widget.RelativeLayout;
 
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 import java.util.concurrent.TimeUnit;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.io.FileInputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -64,52 +73,97 @@ public class MainActivity extends AppCompatActivity {
     private MediaRecorder mediaRecorder;
     private static final int REQUEST_CODE_FILE_PICKER = 4001;
     private String audioFilePath;
+    private String smsId;
+    private String telNumber;
+
+    private boolean isFTPWorkerScheduled = false;
 
     @SuppressLint("QueryPermissionsNeeded")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        scheduleFTPWorker();
         // setContentView(R.layout.activity_main);
-
-        // Combine permisos de audio y almacenamiento
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11 y superior: Solicitar acceso a todos los archivos, micrófono y cámara
-            if (!Environment.isExternalStorageManager() ||
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-
-                // Solicitar acceso a todos los archivos
-                Intent getPermissionIntent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                startActivityForResult(getPermissionIntent, REQUEST_CODE_ALL_FILES_ACCESS);
-
-                // Solicitar permisos adicionales
-                requestPermissions(
-                        new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA},
-                        1001
-                );
-            } else {
-                createDirectory();
-            }
-        } else {
-            // Android 7 a Android 10
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-
-                requestPermissions(
-                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA},
-                        1
-                );
-            } else {
-                createDirectory();
-            }
-        }
 
         // Continuar después de verificar permisos
         initializeApp();
+
+        requestAppPermissions();
     }
 
+    private void requestAppPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager() ||
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+
+                // Pedir permisos especiales
+                Intent getPermissionIntent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivityForResult(getPermissionIntent, REQUEST_CODE_ALL_FILES_ACCESS);
+
+                requestPermissions(
+                        new String[]{
+                                Manifest.permission.RECORD_AUDIO,
+                                Manifest.permission.CAMERA,
+                                Manifest.permission.INTERNET
+                        },
+                        REQUEST_CODE_ALL_FILES_ACCESS
+                );
+            } else {
+                allPermissionsGranted();
+            }
+        } else {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                        new String[]{
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                Manifest.permission.RECORD_AUDIO,
+                                Manifest.permission.CAMERA,
+                                Manifest.permission.INTERNET
+                        },
+                        REQUEST_CODE_ALL_FILES_ACCESS
+                );
+            } else {
+                allPermissionsGranted();
+            }
+        }
+    }
+
+    // Cuando los permisos sean concedidos, se ejecutarán las funciones necesarias
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        boolean allGranted = true;
+        for (int result : grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+
+        if (allGranted) {
+            allPermissionsGranted();
+        } else {
+            //Toast.makeText(this, "Permisos necesarios no concedidos", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // Método que se ejecuta solo cuando los permisos son otorgados
+    private void allPermissionsGranted() {
+        createDirectory();  // Crear directorio si es necesario
+        verifyConfig();     // Verificar configuración
+        if (!isFTPWorkerScheduled) {
+            scheduleFTPWorker(); // Iniciar proceso FTP solo una vez
+            isFTPWorkerScheduled = true; // Marcar como programado
+        } else {
+            executeFTPNow(); // Llamar a executeFTPNow() después de la primera ejecución
+        }
+    }
     // Método para abrir la cámara
     private void openCamera() {
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -137,8 +191,8 @@ public class MainActivity extends AppCompatActivity {
     // Crear archivo para guardar la imagen
     private File createImageFile() {
         try {
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String imageFileName = "JPEG_" + timeStamp + "_";
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+            String imageFileName = smsId + "_" + timeStamp + "_";
             File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
 
             // Crear directorio si no existe
@@ -151,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
             return imageFile;
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(this, "Error al crear archivo de imagen", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error al crear archivo de imagen", Toast.LENGTH_SHORT).show();
             return null;
         }
     }
@@ -167,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             mediaRecorder.release();
             mediaRecorder = null;
 
-            Toast.makeText(this, "Grabación guardada en: " + audioFilePath, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Grabación guardada en: " + audioFilePath, Toast.LENGTH_SHORT).show();
             Log.d("ArchivoAudio", "Archivo guardado en: " + audioFilePath);
         }
     }
@@ -189,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("Directorio", "Carpeta creada exitosamente: " + directory.getAbsolutePath());
             } else {
                 Log.e("Directorio", "Error al crear la carpeta: " + directory.getAbsolutePath());
-                Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.d("Directorio", "La carpeta ya existe: " + directory.getAbsolutePath());
@@ -202,14 +256,14 @@ public class MainActivity extends AppCompatActivity {
 
         if (requestCode == REQUEST_CODE_ALL_FILES_ACCESS) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                createDirectory();
+                allPermissionsGranted();  // Llamamos a la función cuando se conceda el permiso
             } else {
-                Toast.makeText(this, "Permiso para acceder a todos los archivos no otorgado", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "Permiso para acceder a todos los archivos no otorgado", Toast.LENGTH_SHORT).show();
             }
         } else if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
             // Imagen capturada y guardada correctamente
             if (photoUri != null) {
-                Toast.makeText(this, "Imagen guardada correctamente en: " + photoUri.getPath(), Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "Imagen guardada correctamente en: " + photoUri.getPath(), Toast.LENGTH_SHORT).show();
                 Log.d("ImagenGuardada", "Imagen guardada en: " + photoUri.getPath());
             }
         } else if (requestCode == REQUEST_CODE_GALLERY && resultCode == RESULT_OK && data != null) {
@@ -218,20 +272,54 @@ public class MainActivity extends AppCompatActivity {
                 int itemCount = data.getClipData().getItemCount();
                 for (int i = 0; i < itemCount; i++) {
                     Uri imageUri = data.getClipData().getItemAt(i).getUri();
-                    saveImageGalleryToDirectory(imageUri, i); // Pasar el índice para nombres únicos
+                    saveImageGalleryToDirectory(imageUri, i);
                 }
             } else if (data.getData() != null) {
                 // Una sola imagen seleccionada
                 Uri imageUri = data.getData();
-                saveImageGalleryToDirectory(imageUri, 0); // Usar índice 0 para una imagen única
+                saveImageGalleryToDirectory(imageUri, 0);
             }
-        } if (requestCode == REQUEST_CODE_FILE_PICKER && resultCode == RESULT_OK && data != null) {
+        } else if (requestCode == REQUEST_CODE_FILE_PICKER && resultCode == RESULT_OK && data != null) {
             Uri fileUri = data.getData();
             if (fileUri != null) {
                 saveFileToStorage(fileUri);
             }
         }
-        executeFTPNow();
+
+        // Verificar si ya se tienen todos los permisos y ejecutar verifyConfig y scheduleFTPWorker
+        if (checkAllPermissionsGranted()) {
+            allPermissionsGranted();
+        }
+    }
+
+    private boolean checkAllPermissionsGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager() &&
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+
+    private void verifyConfig() {
+        SharedPreferences sharedPreferences = getSharedPreferences("ConfigTienda", MODE_PRIVATE);
+
+        // Verificar si la configuración existe
+        if (!sharedPreferences.contains("smsid")) {
+            startActivity(new Intent(this, ConfiguracionActivity.class));
+            finish();
+            return;
+        }
+
+        // Obtener los valores guardados
+        smsId = sharedPreferences.getString("smsid", "");
+        telNumber = sharedPreferences.getString("telnumber", "");
     }
 
     private void saveFileToStorage(Uri fileUri) {
@@ -241,12 +329,12 @@ public class MainActivity extends AppCompatActivity {
             // Crear la carpeta si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
                 Log.e("Directorio", "Error al crear directorio: " + storageDir.getAbsolutePath());
-                Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Obtener el nombre del archivo original
-            String fileName = "FILE_" + System.currentTimeMillis() + "." +
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+            String fileName = smsId + "_" + timeStamp + "." +
                     getFileExtension(fileUri);
             File newFile = new File(storageDir, fileName);
 
@@ -263,12 +351,12 @@ public class MainActivity extends AppCompatActivity {
             inputStream.close();
             outputStream.close();
 
-            Toast.makeText(this, "Archivo guardado en: " + newFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Archivo guardado en: " + newFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
             Log.d("ArchivoGuardado", "Archivo guardado en: " + newFile.getAbsolutePath());
 
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -293,13 +381,13 @@ public class MainActivity extends AppCompatActivity {
             // Crear el directorio si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
                 Log.e("Directorio", "Error al crear directorio: " + storageDir.getAbsolutePath());
-                Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "No se pudo crear el directorio", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             // Crear un archivo con nombre único para guardar la imagen
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String fileName = "IMG_" + timeStamp + "_" + index + ".jpg"; // Agregar índice al nombre
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+            String fileName = smsId + "_" + timeStamp + "_" + index + ".jpg"; // Agregar índice al nombre
             File imageFile = new File(storageDir, fileName);
 
             // Copiar contenido desde el URI a un archivo
@@ -315,26 +403,11 @@ public class MainActivity extends AppCompatActivity {
             inputStream.close();
             outputStream.close();
 
-            Toast.makeText(this, "Imagen guardada: " + imageFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Imagen guardada: " + imageFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
             Log.d("GuardarImagen", "Imagen guardada en: " + imageFile.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(this, "Error al guardar la imagen", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == 1) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                createDirectory();
-            } else {
-                Toast.makeText(this, "Permiso denegado para escribir en el almacenamiento externo", Toast.LENGTH_SHORT).show();
-            }
+            //Toast.makeText(this, "Error al guardar la imagen", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -345,11 +418,11 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(binding.appBarMain.toolbar);
 
-        binding.appBarMain.fab.setOnClickListener(view -> {
+/*        binding.appBarMain.fab.setOnClickListener(view -> {
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                     .setAction("Action", null)
                     .setAnchorView(R.id.fab).show();
-        });
+        });*/
 
         // Manejar el Intent después de configurar la interfaz de usuario
         handleIntent();
@@ -390,32 +463,43 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = getIntent();
         String action = intent.getAction();
         String type = intent.getType();
+        SharedPreferences sharedPreferences = getSharedPreferences("ConfigTienda", MODE_PRIVATE);
+        smsId = sharedPreferences.getString("smsid", "");
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("image/*".equals(type) || "application/pdf".equals(type)) {
                 Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
                 if (uri != null) {
-                    // Ruta específica en Android/media/com.niq.niqpurchasecollector
-                    File mediaDirectory = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/archivos_recibidos");
+                    File mediaDirectory = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
 
-                    // Verifica si la carpeta existe, de lo contrario, créala
-                    if (!mediaDirectory.exists()) {
-                        if (mediaDirectory.mkdirs()) {
-                            Log.d("Directorio", "Carpeta creada exitosamente: " + mediaDirectory.getAbsolutePath());
-                        } else {
-                            Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
-                            Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
+                    // Verificar y crear directorio si no existe
+                    if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {
+                        Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
+                        //Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
+                        return;
                     }
 
-                    // Nombre del archivo basado en la hora actual y el tipo de archivo
-                    String fileName = "archivo_" + System.currentTimeMillis() + "." +
-                            MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
+                    // Convertir el archivo recibido a un hash SHA-256
+                    String newFileHash = getFileHash(uri);
+                    if (newFileHash == null) {
+                        //Toast.makeText(this, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // Buscar si ya existe un archivo con el mismo hash en la carpeta destino
+                    if (isDuplicateFile(mediaDirectory, newFileHash)) {
+                        //Toast.makeText(this, "El archivo ya existe, no se guardará duplicado", Toast.LENGTH_SHORT).show();
+                        Log.w("ArchivoGuardado", "Archivo duplicado detectado, no se guardará.");
+                        return;
+                    }
+
+                    // Crear nombre de archivo basado en fecha y tipo
+                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+                    String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
+                    String fileName = smsId + "_" + timeStamp + "." + (extension != null ? extension : "dat");
                     File file = new File(mediaDirectory, fileName);
 
                     try {
-                        // Copiar contenido del archivo compartido al destino
                         InputStream inputStream = getContentResolver().openInputStream(uri);
                         OutputStream outputStream = new FileOutputStream(file);
 
@@ -427,17 +511,89 @@ public class MainActivity extends AppCompatActivity {
                         inputStream.close();
                         outputStream.close();
 
-                        Toast.makeText(this, "Archivo guardado correctamente en: " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "El archivo será enviado a NIQ", Toast.LENGTH_SHORT).show();
                         Log.d("ArchivoGuardado", "Archivo guardado en: " + file.getAbsolutePath());
+
                     } catch (IOException e) {
                         e.printStackTrace();
-                        Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
+                        //Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
                     }
                 }
             }
         }
+
+        // Evitar que la intención se procese varias veces
+        intent.setAction(null);
     }
 
+    private String getFileHash(Uri uri) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                digest.update(buffer, 0, bytesRead);
+            }
+            inputStream.close();
+
+            // Convertir el hash en un string hexadecimal
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : digest.digest()) {
+                hexString.append(String.format("%02x", b));
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException | IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private boolean isDuplicateFile(File directory, String newFileHash) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                String existingFileHash = getFileHash(Uri.fromFile(file));
+                if (newFileHash.equals(existingFileHash)) {
+                    return true; // Archivo duplicado encontrado
+                }
+            }
+        }
+        return false;
+    }
+
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);  // Actualizar el intent
+        processIntent(intent);  // Procesar el nuevo intent
+    }
+
+    // Método unificado para manejar todos los intents
+    private void processIntent(Intent intent) {
+        if (intent == null) return;
+
+        // Caso 1: Ejecutar FTP desde otra actividad
+        if (intent.hasExtra("TRIGGER_FTP")) {
+            executeFTPNow();
+            return;
+        }
+
+        // Caso 2: Archivo compartido desde otra app
+        String action = intent.getAction();
+        String type = intent.getType();
+
+        if (Intent.ACTION_SEND.equals(action) && type != null) {
+            handleIntent();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        handleIntent(); // Vuelve a verificar al regresar a la app
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -457,12 +613,31 @@ public class MainActivity extends AppCompatActivity {
         WorkRequest ftpWorkRequest = new PeriodicWorkRequest.Builder(FTPWorker.class, 1, TimeUnit.HOURS)
                 .build();
 
-        WorkManager.getInstance(this).enqueue(ftpWorkRequest);
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "FTPWorkerJob",
+                ExistingPeriodicWorkPolicy.KEEP, // Si ya existe una instancia no la vuecve a crear
+                (PeriodicWorkRequest) ftpWorkRequest
+        );
     }
 
+
     private void executeFTPNow() {
-        WorkRequest ftpWorkRequest = new OneTimeWorkRequest.Builder(FTPWorker.class).build();
-        WorkManager.getInstance(this).enqueue(ftpWorkRequest);
-        Toast.makeText(this, "Tarea de FTP ejecutándose...", Toast.LENGTH_SHORT).show();
+        WorkManager workManager = WorkManager.getInstance(this);
+
+        workManager.getWorkInfosForUniqueWorkLiveData("FTPWorkerOneTime")
+                .observeForever(workInfos -> {
+                    for (WorkInfo workInfo : workInfos) {
+                        if (workInfo.getState() == WorkInfo.State.RUNNING ||
+                                workInfo.getState() == WorkInfo.State.ENQUEUED) {
+                            Log.d("FTPWorker", "Ya hay una tarea en ejecución.");
+                            return; // Evita crear otra instancia si ya está en proceso
+                        }
+                    }
+
+                    WorkRequest ftpWorkRequest = new OneTimeWorkRequest.Builder(FTPWorker.class).build();
+                    workManager.enqueueUniqueWork("FTPWorkerOneTime", ExistingWorkPolicy.KEEP, (OneTimeWorkRequest) ftpWorkRequest);
+                    Log.d("FTPWorker", "Tarea de FTP encolada correctamente.");
+                });
     }
+
 }

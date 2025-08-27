@@ -29,6 +29,18 @@ public class ConfiguracionActivity extends AppCompatActivity {
         btnGuardar.setOnClickListener(v -> guardarConfiguracion());
     }
 
+    /**
+     * Guarda la configuración de la aplicación.
+     * <p>
+     * Este método recupera el IDSMS, el número de teléfono y el código de validación de los campos de entrada.
+     * Valida que los campos no estén vacíos.
+     * Valida que el ID de SMS tenga exactamente 10 dígitos numéricos.
+     * Valida que el número de teléfono tenga exactamente 8 dígitos numéricos.
+     * Valida que el código de validación sea "94565923".
+     * Si todas las validaciones pasan, guarda la configuración en SharedPreferences,
+     * muestra un mensaje de éxito, inicia MainActivity y finaliza la actividad actual.
+     * Si alguna validación falla, muestra un mensaje de error apropiado.
+     */
     private void guardarConfiguracion() {
         String smsId = etSmsId.getText().toString().trim();
         String telNumber = etTelNumber.getText().toString().trim();

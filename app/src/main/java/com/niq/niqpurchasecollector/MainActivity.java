@@ -83,6 +83,23 @@ public class MainActivity extends AppCompatActivity {
     //private boolean isFTPWorkerScheduled = false;
     private boolean isFirebaseWorkerScheduled = false;
 
+    /**
+     * Se llama cuando la actividad se crea por primera vez.
+     * Este método inicializa Firebase, configura Firebase App Check para seguridad,
+     * inicializa la interfaz de usuario de la aplicación y solicita los permisos necesarios.
+     *
+     * Firebase App Check se configura para usar Play Integrity en compilaciones de producción
+     * y un proveedor de depuración para compilaciones de desarrollo para garantizar que los recursos
+     * de backend de la aplicación estén protegidos contra abusos.
+     *
+     * Después de la inicialización de Firebase y App Check, procede a inicializar
+     * el resto de los componentes de la aplicación y luego solicita los permisos de tiempo de ejecución
+     * necesarios para la funcionalidad de la aplicación.
+     *
+     * @param savedInstanceState Si la actividad se está reinicializando después
+     *     de haber sido cerrada previamente, este Bundle contiene los datos que
+     *     suministró más recientemente en {@link #onSaveInstanceState}.  <b><i>Nota: De lo contrario, es nulo.</i></b>
+     */
     @SuppressLint("QueryPermissionsNeeded")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,6 +127,18 @@ public class MainActivity extends AppCompatActivity {
         requestAppPermissions();
     }
 
+    /**
+     * Solicita los permisos necesarios de la aplicación.
+     *
+     * Este método comprueba si los permisos requeridos (almacenamiento externo, grabar audio, cámara, internet)
+     * están concedidos. Si no, los solicita al usuario.
+     *
+     * Para Android R (API 30) y superior, solicita específicamente el permiso `MANAGE_EXTERNAL_STORAGE`
+     * junto con otros permisos estándar. Para versiones anteriores, solicita
+     * `WRITE_EXTERNAL_STORAGE`.
+     *
+     * Si todos los permisos ya están concedidos, procede a llamar a `allPermissionsGranted()`.
+     */
     private void requestAppPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager() ||
@@ -153,7 +182,23 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Cuando los permisos sean concedidos, se ejecutarán las funciones necesarias
+    /**
+     * Respuesta a la solicitud de permisos. Este método se invoca para cada llamada a
+     * {@link #requestPermissions(String[], int)}.
+     * <p>
+     * <strong>Nota:</strong> Es posible que la interacción de solicitud de permisos
+     * con el usuario sea interrumpida. En este caso, recibirás arrays de permisos
+     * y resultados vacíos que deben tratarse como una cancelación.
+     * </p>
+     *
+     * @param requestCode El código de solicitud pasado en {@link #requestPermissions(String[], int)}.
+     * @param permissions Los permisos solicitados. Nunca es nulo.
+     * @param grantResults Los resultados de la concesión para los permisos correspondientes
+     *     que pueden ser {@link PackageManager#PERMISSION_GRANTED}
+     *     o {@link PackageManager#PERMISSION_DENIED}. Nunca es nulo.
+     *
+     * @see #requestPermissions(String[], int)
+     */ // Cuando los permisos sean concedidos, se ejecutarán las funciones necesarias
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -173,7 +218,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Método que se ejecuta solo cuando los permisos son otorgados
+    /**
+     * Este método se ejecuta cuando se otorgan todos los permisos necesarios.
+     * Realiza las siguientes acciones:
+     * 1. Crea un directorio si no existe.
+     * 2. Verifica la configuración de la aplicación.
+     * 3. Si el worker de Firebase no está programado, lo programa y lo marca como programado.
+     * 4. Si el worker de Firebase ya está programado, lo ejecuta inmediatamente.
+     */ // Método que se ejecuta solo cuando los permisos son otorgados
     private void allPermissionsGranted() {
         createDirectory();  // Crear directorio si es necesario
         verifyConfig();     // Verificar configuración
@@ -187,7 +239,30 @@ public class MainActivity extends AppCompatActivity {
             executeFirebaseNow();
         }
     }
-    // Método para abrir la cámara
+    /**
+     * Abre la cámara del dispositivo para capturar una imagen.
+     * <p>
+     * Este método crea un {@link Intent} con {@link MediaStore#ACTION_IMAGE_CAPTURE}
+     * para iniciar la aplicación de la cámara. Primero comprueba si existe una aplicación
+     * que pueda manejar este intent. Si es así, procede a crear un archivo temporal
+     * donde se almacenará la imagen capturada.
+     * </p>
+     * <p>
+     * El archivo de imagen se crea utilizando {@link #createImageFile()}. Si el archivo se
+     * crea con éxito, su URI se obtiene mediante {@link FileProvider#getUriForFile(android.content.Context, String, File)}
+     * y se pasa al intent de la cámara como un extra ({@link MediaStore#EXTRA_OUTPUT}).
+     * Esto asegura que la aplicación de la cámara guarde la imagen en el archivo especificado.
+     * </p>
+     * <p>
+     * Finalmente, se llama a {@link #startActivityForResult(Intent, int)} con el intent de la cámara
+     * y un código de solicitud ({@link #REQUEST_CODE_CAMERA}). El resultado de esta actividad
+     * (la imagen capturada) se manejará en el método {@link #onActivityResult(int, int, Intent)}.
+     * </p>
+     * <p>
+     * Si no se encuentra ninguna aplicación de cámara en el dispositivo, se muestra un mensaje {@link Toast}
+     * "No se encontró aplicación de cámara" al usuario.
+     * </p>
+     */ // Método para abrir la cámara
     private void openCamera() {
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
@@ -204,6 +279,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Abre la galería del dispositivo para permitir al usuario seleccionar una o más imágenes.
+     * Crea un Intent con `ACTION_GET_CONTENT` para seleccionar archivos de imagen.
+     * `EXTRA_ALLOW_MULTIPLE` se establece en verdadero para habilitar la selección de múltiples imágenes.
+     * La(s) imagen(es) seleccionada(s) se manejarán en el método `onActivityResult`
+     * con el código de solicitud `REQUEST_CODE_GALLERY`.
+     */
     private void openGallery() {
         Intent galleryIntent = new Intent(Intent.ACTION_GET_CONTENT);
         galleryIntent.setType("image/*");
@@ -211,7 +293,14 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(Intent.createChooser(galleryIntent, "Selecciona imágenes"), REQUEST_CODE_GALLERY);
     }
 
-    // Crear archivo para guardar la imagen
+    /**
+     * Crea un archivo de imagen en el directorio de almacenamiento designado.
+     * El nombre del archivo se genera usando el {@code smsId} y una marca de tiempo para asegurar la unicidad.
+     * La imagen se guardará en el directorio "Android/media/com.niq.niqpurchasecollector/recursoscolectados"
+     * en el almacenamiento externo. Si el directorio no existe, se creará.
+     *
+     * @return Un objeto {@link File} que representa el archivo de imagen creado, o {@code null} si ocurrió un error.
+     */ // Crear archivo para guardar la imagen
     private File createImageFile() {
         try {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
@@ -233,6 +322,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Inicia la actividad de grabación de voz.
+     * Este método crea una intención para iniciar la actividad {@link activity_voice_recorder},
+     * que gestiona la funcionalidad de grabación de voz.
+     */
     private void startRecording() {
         Intent screenRecorderIntent = new Intent(MainActivity.this, activity_voice_recorder.class);
         startActivity(screenRecorderIntent);
@@ -273,6 +367,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Maneja el resultado de una actividad lanzada para obtener un resultado.
+     * Este método se llama cuando una actividad lanzada por {@link #startActivityForResult(Intent, int)}
+     * devuelve un resultado. Procesa resultados para varios códigos de solicitud, como:
+     * - {@link #REQUEST_CODE_ALL_FILES_ACCESS}: Maneja el resultado de la solicitud de permiso de acceso a todos los archivos.
+     *   Si se concede, llama a {@link #allPermissionsGranted()}.
+     * - {@link #REQUEST_CODE_CAMERA}: Maneja el resultado de capturar una imagen con la cámara.
+     *   Si tiene éxito, registra la ruta de la imagen guardada.
+     * - {@link #REQUEST_CODE_GALLERY}: Maneja el resultado de seleccionar imagen(es) de la galería.
+     *   Guarda la(s) imagen(es) seleccionada(s) en el directorio designado de la aplicación.
+     * - {@link #REQUEST_CODE_FILE_PICKER}: Maneja el resultado de seleccionar un archivo usando el selector de archivos.
+     *   Si tiene éxito, guarda el archivo seleccionado en el directorio designado de la aplicación.
+     *
+     * Después de procesar la solicitud específica, verifica si todos los permisos necesarios están concedidos
+     * y llama a {@link #allPermissionsGranted()} si lo están.
+     *
+     * @param requestCode El código de solicitud entero suministrado originalmente a
+     *                    startActivityForResult(), permitiéndole identificar de quién
+     *                    proviene este resultado.
+     * @param resultCode El código de resultado entero devuelto por la actividad secundaria
+     *                   a través de su setResult().
+     * @param data Un Intent, que puede devolver datos de resultado al llamador
+     *               (se pueden adjuntar varios datos a los "extras" del Intent).
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

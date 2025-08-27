@@ -108,13 +108,15 @@
                 app:startIconDrawable="@drawable/ic_lock"
                 app:startIconTint="@color/primary"
                 app:boxBackgroundColor="@color/white"
+                app:passwordToggleEnabled="true"
+                app:passwordToggleTint="@color/primary"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etValidationCode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="number"
+                    android:inputType="numberPassword"
                     android:maxLines="1"/>
             </com.google.android.material.textfield.TextInputLayout>
 

@@ -11,7 +11,7 @@ import com.google.android.material.textfield.TextInputEditText;
 
 public class ConfiguracionActivity extends AppCompatActivity {
 
-    private TextInputEditText etSmsId, etTelNumber;
+    private TextInputEditText etSmsId, etTelNumber, etValidationCode;
     private SharedPreferences sharedPreferences;
 
     @Override
@@ -21,6 +21,7 @@ public class ConfiguracionActivity extends AppCompatActivity {
 
         etSmsId = findViewById(R.id.etSmsId);
         etTelNumber = findViewById(R.id.etTelNumber);
+        etValidationCode = findViewById(R.id.etValidationCode); // Nuevo campo
         Button btnGuardar = findViewById(R.id.btnGuardar);
 
         sharedPreferences = getSharedPreferences("ConfigTienda", Context.MODE_PRIVATE);
@@ -31,9 +32,10 @@ public class ConfiguracionActivity extends AppCompatActivity {
     private void guardarConfiguracion() {
         String smsId = etSmsId.getText().toString().trim();
         String telNumber = etTelNumber.getText().toString().trim();
+        String validationCode = etValidationCode.getText().toString().trim(); // Nuevo campo
 
         // Validar que los campos no estén vacíos
-        if (smsId.isEmpty() || telNumber.isEmpty()) {
+        if (smsId.isEmpty() || telNumber.isEmpty() || validationCode.isEmpty()) {
             Toast.makeText(this, "Todos los campos son obligatorios", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -50,6 +52,12 @@ public class ConfiguracionActivity extends AppCompatActivity {
             return;
         }
 
+        // Validar que el código de validación sea 94565923
+        if (!validationCode.equals("94565923")) {
+            Toast.makeText(this, "El código de validación es incorrecto", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // Guardar configuración si todo es válido
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("smsid", smsId);
@@ -61,5 +69,4 @@ public class ConfiguracionActivity extends AppCompatActivity {
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }
-
 }

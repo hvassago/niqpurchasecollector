@@ -24,6 +24,7 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
 import com.niq.niqpurchasecollector.databinding.ActivityMainBinding;
 
 import android.Manifest;
@@ -57,6 +58,9 @@ import java.util.concurrent.TimeUnit;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.io.FileInputStream;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.appcheck.FirebaseAppCheck;
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -76,13 +80,29 @@ public class MainActivity extends AppCompatActivity {
     private String smsId;
     private String telNumber;
 
-    private boolean isFTPWorkerScheduled = false;
+    //private boolean isFTPWorkerScheduled = false;
+    private boolean isFirebaseWorkerScheduled = false;
 
     @SuppressLint("QueryPermissionsNeeded")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // setContentView(R.layout.activity_main);
+        FirebaseApp.initializeApp(this);
+        FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.getInstance();
+
+        // SOLUCIÓN: Usar Play Integrity para producción o Debug solo para desarrollo
+        if (BuildConfig.DEBUG) {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance()
+            );
+            // Configurar token de depuración
+            System.setProperty("firebase.appcheck.debug.token", "00D1EBCC-6A3C-4FE9-AB85-5A472A4BE7A2");
+        } else {
+            // Para producción usar Play Integrity
+            firebaseAppCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+            );
+        }
 
         // Continuar después de verificar permisos
         initializeApp();
@@ -157,11 +177,14 @@ public class MainActivity extends AppCompatActivity {
     private void allPermissionsGranted() {
         createDirectory();  // Crear directorio si es necesario
         verifyConfig();     // Verificar configuración
-        if (!isFTPWorkerScheduled) {
-            scheduleFTPWorker(); // Iniciar proceso FTP solo una vez
-            isFTPWorkerScheduled = true; // Marcar como programado
+        if (!isFirebaseWorkerScheduled) {
+            //scheduleFTPWorker(); // Iniciar proceso FTP solo una vez
+            scheduleFirebaseWorker();
+            //isFTPWorkerScheduled = true; // Marcar como programado
+            isFirebaseWorkerScheduled = true;
         } else {
-            executeFTPNow(); // Llamar a executeFTPNow() después de la primera ejecución
+            //executeFTPNow(); // Llamar a executeFTPNow() después de la primera ejecución
+            executeFirebaseNow();
         }
     }
     // Método para abrir la cámara
@@ -412,6 +435,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeApp() {
+        //Verificar modo de ejecución
+        if (BuildConfig.DEBUG) {
+            Log.d("BuildConfig", "MODO DEBUG");
+        } else {
+            Log.d("BuildConfig", "MODO RELEASE");
+        }
         // Configurar la interfaz de usuario
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -575,8 +604,9 @@ public class MainActivity extends AppCompatActivity {
         if (intent == null) return;
 
         // Caso 1: Ejecutar FTP desde otra actividad
-        if (intent.hasExtra("TRIGGER_FTP")) {
-            executeFTPNow();
+        if (intent.hasExtra("TRIGGER_Firebase")) {
+            //executeFTPNow();
+            executeFirebaseNow();
             return;
         }
 
@@ -620,6 +650,17 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
+    private void scheduleFirebaseWorker() {
+        PeriodicWorkRequest firebaseWorkRequest = new PeriodicWorkRequest.Builder(FirebaseWorker.class, 1, TimeUnit.HOURS)
+                .build();
+        Log.d("scheduleFirebaseWorker()", "Programando tarea Firebase");
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "FirebaseWorkerJob",
+                ExistingPeriodicWorkPolicy.KEEP, // Mantiene el temporizador si ya existe
+                firebaseWorkRequest
+        );
+    }
+
 
     private void executeFTPNow() {
         WorkManager workManager = WorkManager.getInstance(this);
@@ -635,5 +676,21 @@ public class MainActivity extends AppCompatActivity {
 
         // Reiniciar el temporizador de ejecución periódica
         scheduleFTPWorker();
+    }
+
+    private void executeFirebaseNow() {
+        WorkManager workManager = WorkManager.getInstance(this);
+        Log.d("executeFirebaseNow()", "Ejecutando");
+
+        // Crear la tarea inmediata con un pequeño retraso para asegurar su encolamiento
+        OneTimeWorkRequest firebaseWorkRequest = new OneTimeWorkRequest.Builder(FirebaseWorker.class)
+                .setInitialDelay(1, TimeUnit.SECONDS) // Pequeño retraso para evitar problemas de encolamiento
+                .build();
+
+        workManager.enqueueUniqueWork("FirebaseWorkerOneTime", ExistingWorkPolicy.REPLACE, firebaseWorkRequest);
+        Log.d("FirebaseWorker", "Tarea de Firebase ejecutándose inmediatamente...");
+
+        // Reiniciar el temporizador de ejecución periódica
+        scheduleFirebaseWorker();
     }
 }

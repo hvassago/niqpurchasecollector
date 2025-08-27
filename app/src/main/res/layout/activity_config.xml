@@ -7,57 +7,136 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
-    android:gravity="center"
-    android:background="@color/white">
+    android:background="@drawable/bg_gradient">
 
-    <ImageView
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:src="@drawable/ic_settings"
-        android:layout_marginBottom="32dp"/>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilSmsId"
+    <!-- Cabecera con título y descripción -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="SMS ID"
-        app:startIconDrawable="@drawable/ic_code"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etSmsId"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:maxLines="1"/>
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilTelNumber"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
         android:layout_marginTop="16dp"
-        android:hint="Número de teléfono"
-        app:startIconDrawable="@drawable/ic_phone"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        android:layout_marginBottom="32dp">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etTelNumber"
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_settings"
+            android:layout_marginBottom="16dp"
+            app:tint="@color/primaryDark" />
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="phone"
-            android:maxLines="1"/>
-    </com.google.android.material.textfield.TextInputLayout>
+            android:text="Configuración"
+            android:textColor="@color/primaryDark"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"/>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Complete los datos requeridos"
+            android:textColor="@color/textSecondary"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="4dp"/>
+    </LinearLayout>
+
+    <!-- Tarjeta que contiene los campos de entrada -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Campo SMS ID -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilSmsId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="     STOREID"
+                app:startIconDrawable="@drawable/ic_code"
+                app:startIconTint="@color/primary"
+                app:boxBackgroundColor="@color/white"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etSmsId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Número de teléfono -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilTelNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="     Número de teléfono"
+                app:startIconDrawable="@drawable/ic_phone"
+                app:startIconTint="@color/primary"
+                app:boxBackgroundColor="@color/white"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTelNumber"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone"
+                    android:maxLines="1"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Nuevo campo: Código de validación -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilValidationCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="     Código de validación"
+                app:startIconDrawable="@drawable/ic_lock"
+                app:startIconTint="@color/primary"
+                app:boxBackgroundColor="@color/white"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etValidationCode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Botón de acción -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnGuardar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="16dp"
         android:text="Guardar Configuración"
         android:textColor="@color/white"
+        android:textAllCaps="false"
+        android:textSize="16sp"
         app:icon="@drawable/ic_save"
         app:iconTint="@color/white"
-        app:backgroundTint="@color/secondary"/>
+        app:cornerRadius="8dp"
+        app:backgroundTint="@color/secondary"
+        style="?attr/materialButtonOutlinedStyle"/>
+
+    <!-- Texto de ayuda -->
 
 </LinearLayout>

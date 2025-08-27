@@ -1,32 +1,30 @@
 package com.niq.niqpurchasecollector;
+
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.work.WorkInfo;
-import androidx.work.WorkManager;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPSClient; // Cambiado a FTPSClient
+import org.apache.commons.net.ftp.FTPSClient;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FTPWorker extends Worker {
 
     private static final String TAG = "FTPWorker";
-    private static final String FTP_HOST = BuildConfig.FTP_HOST;//extraer de gradle.properties
-    private static final String FTP_USER = BuildConfig.FTP_USER;//extraer de gradle.properties
-    private static final String FTP_PASS = BuildConfig.FTP_PASS;//extraer de gradle.properties
-    private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH;//extraer de gradle.properties
+    private static final String FTP_HOST = BuildConfig.FTP_HOST; //extraer de gradle.properties
+    private static final int FTP_PORT = BuildConfig.FTP_PORT; //extraer de gradle.properties
+    private static final String FTP_USER = BuildConfig.FTP_USER; //extraer de gradle.properties
+    private static final String FTP_PASS = BuildConfig.FTP_PASS; //extraer de gradle.properties
+    private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH; //extraer de gradle.properties
     private static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public FTPWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
@@ -41,6 +39,7 @@ public class FTPWorker extends Worker {
         FTPClient ftpClient = null;
 
         try {
+            // Verifica si la carpeta existe
             File folder = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
             if (!folder.exists()) {
                 Log.e(TAG, "Carpeta no existe: " + folder.getAbsolutePath());
@@ -56,8 +55,9 @@ public class FTPWorker extends Worker {
             boolean useFTPS = true; // Intentar primero con FTPS
 
             try {
+                // Intentamos con FTPS
                 ftpClient = new FTPSClient();
-                ftpClient.connect(FTP_HOST, 21);
+                ftpClient.connect(FTP_HOST, FTP_PORT);
                 Log.d(TAG, "Respuesta connect (FTPS): " + ftpClient.getReplyString());
 
                 if (!ftpClient.login(FTP_USER, FTP_PASS)) {
@@ -74,7 +74,7 @@ public class FTPWorker extends Worker {
                 Log.w(TAG, "El servidor no admite FTPS. Probando con FTP no seguro.");
                 useFTPS = false;
                 ftpClient = new FTPClient();
-                ftpClient.connect(FTP_HOST, 21);
+                ftpClient.connect(FTP_HOST, FTP_PORT);
                 Log.d(TAG, "Respuesta connect (FTP): " + ftpClient.getReplyString());
 
                 if (!ftpClient.login(FTP_USER, FTP_PASS)) {
@@ -84,7 +84,34 @@ public class FTPWorker extends Worker {
                 Log.d(TAG, "Login exitoso (FTP): " + ftpClient.getReplyString());
             }
 
-            ftpClient.enterLocalPassiveMode();
+            // Intentar primero en modo pasivo, si falla, cambiar a modo activo
+            try {
+                ftpClient.enterLocalPassiveMode(); // Intentamos con modo pasivo
+                Log.d(TAG, "Modo pasivo activado.");
+            } catch (Exception e) {
+                Log.w(TAG, "Error al activar el modo pasivo, intentando en modo activo.", e);
+                ftpClient.enterLocalActiveMode(); // Si falla, intentamos en modo activo
+                Log.d(TAG, "Modo activo activado.");
+            }
+
+            // Verificar si estamos usando una IP privada y obtener la IP pública del mensaje de error
+            String publicIp = extractPublicIPFromErrorMessage(ftpClient.getReplyString());
+
+            if (ftpClient.getReplyString().contains("using address 192.168")) {
+                Log.w(TAG, "Detectado uso de IP privada, reconectando con la IP pública.");
+                if (publicIp != null) {
+                    Log.d(TAG, "Usando IP pública: " + publicIp);
+                    ftpClient.disconnect();
+                    ftpClient.connect(publicIp, FTP_PORT);
+                    ftpClient.login(FTP_USER, FTP_PASS);
+                    ftpClient.enterLocalPassiveMode(); // Volver a activar modo pasivo
+                    Log.d(TAG, "Conexión restablecida usando la IP pública.");
+                } else {
+                    Log.e(TAG, "No se pudo obtener la IP pública del mensaje.");
+                    return Result.failure();
+                }
+            }
+
             ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
             // Subir los archivos
@@ -109,6 +136,7 @@ public class FTPWorker extends Worker {
                 Log.e(TAG, "Error al desconectar: " + e.getMessage());
             }
         }
+
         return Result.success();
     }
 
@@ -123,4 +151,20 @@ public class FTPWorker extends Worker {
         }
     }
 
+    /**
+     * Extrae la IP pública del servidor FTP desde el mensaje de error
+     * @param replyString Mensaje de respuesta del servidor FTP
+     * @return IP pública del servidor FTP
+     */
+    private String extractPublicIPFromErrorMessage(String replyString) {
+        String publicIp = null;
+        if (replyString != null && replyString.contains("Host attempting data connection")) {
+            int startIdx = replyString.indexOf("server") + 7; // La palabra "server" está después de "not same as"
+            int endIdx = replyString.indexOf(" ", startIdx);
+            if (startIdx > 0 && endIdx > startIdx) {
+                publicIp = replyString.substring(startIdx, endIdx);
+            }
+        }
+        return publicIp;
+    }
 }

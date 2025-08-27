@@ -8,11 +8,18 @@ import android.util.Log;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class activity_voice_recorder extends AppCompatActivity {
 
@@ -188,9 +195,11 @@ public class activity_voice_recorder extends AppCompatActivity {
         try {
             // Copiar archivo en lugar de usar renameTo()
             copyFile(recordedFile, finalFile);
-            Intent ftpIntent = new Intent(activity_voice_recorder.this, MainActivity.class);
-            ftpIntent.putExtra("TRIGGER_FTP", true);
-            startActivity(ftpIntent);
+            //Intent firebaseIntent = new Intent(activity_voice_recorder.this, MainActivity.class);
+            //firebaseIntent.putExtra("TRIGGER_Firebase", true);
+            //startActivity(firebaseIntent);
+            // 🚀 Subir directo a Firebase
+            executeFirebaseNow();
             finish();
             //Toast.makeText(this, "Guardado en: " + finalFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
@@ -322,4 +331,31 @@ public class activity_voice_recorder extends AppCompatActivity {
             }
         }
     };
+
+    private void executeFirebaseNow() {
+        WorkManager workManager = WorkManager.getInstance(this);
+        Log.d("executeFirebaseNow()", "Ejecutando");
+
+        // Crear la tarea inmediata con un pequeño retraso para asegurar su encolamiento
+        OneTimeWorkRequest firebaseWorkRequest = new OneTimeWorkRequest.Builder(FirebaseWorker.class)
+                .setInitialDelay(1, TimeUnit.SECONDS) // Pequeño retraso para evitar problemas de encolamiento
+                .build();
+
+        workManager.enqueueUniqueWork("FirebaseWorkerOneTime", ExistingWorkPolicy.REPLACE, firebaseWorkRequest);
+        Log.d("FirebaseWorker", "Tarea de Firebase ejecutándose inmediatamente...");
+
+        // Reiniciar el temporizador de ejecución periódica
+        scheduleFirebaseWorker();
+    }
+
+    private void scheduleFirebaseWorker() {
+        PeriodicWorkRequest firebaseWorkRequest = new PeriodicWorkRequest.Builder(FirebaseWorker.class, 1, TimeUnit.HOURS)
+                .build();
+        Log.d("scheduleFirebaseWorker()", "Programando tarea Firebase");
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "FirebaseWorkerJob",
+                ExistingPeriodicWorkPolicy.KEEP, // Mantiene el temporizador si ya existe
+                firebaseWorkRequest
+        );
+    }
 }

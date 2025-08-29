@@ -71,6 +71,7 @@ public class FirebaseWorker extends Worker {
             // Validación de tamaño: 15MB
             long fileSizeInBytes = file.length();
             long maxSize = 15 * 1024 * 1024; // 15 MB en bytes
+            long minSize = 100; //
 
             if (fileSizeInBytes > maxSize) {
                 Log.w(TAG, "Archivo demasiado grande (" + (fileSizeInBytes / (1024 * 1024)) + " MB). Se elimina.");
@@ -91,6 +92,13 @@ public class FirebaseWorker extends Worker {
                 );
 
                 return false;
+            }else if (fileSizeInBytes < minSize) {
+                // Borrar archivo
+                if (file.delete()) {
+                    Log.d(TAG, "Archivo eliminado: " + file.getName());
+                } else {
+                    Log.e(TAG, "No se pudo eliminar el archivo: " + file.getName());
+                }
             }
 
             // 📂 Parsear nombre de archivo para obtener código de tienda y periodo

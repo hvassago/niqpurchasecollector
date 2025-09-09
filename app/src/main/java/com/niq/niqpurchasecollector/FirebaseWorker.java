@@ -9,6 +9,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.work.Data;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
@@ -25,6 +26,12 @@ public class FirebaseWorker extends Worker {
     private static final String TAG = "FirebaseWorker";
     private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH; //extraer de gradle.properties
 
+    // Constantes para los datos de progreso (igual que en MainActivity)
+    public static final String KEY_PROGRESS_PERCENT = "PROGRESS_PERCENT";
+    public static final String KEY_FILES_UPLOADED = "FILES_UPLOADED";
+    public static final String KEY_FILES_REMAINING = "FILES_REMAINING";
+    public static final String KEY_TOTAL_FILES = "TOTAL_FILES";
+    public static final String KEY_ERROR_MESSAGE = "ERROR_MESSAGE";
     public FirebaseWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
     }
@@ -39,31 +46,71 @@ public class FirebaseWorker extends Worker {
             File folder = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
             if (!folder.exists()) {
                 Log.e(TAG, "Carpeta no existe: " + folder.getAbsolutePath());
-                return Result.failure();
+                setProgressAsync(createProgressData(0,0,0,0, "Carpeta de envío no encontrada"));
+                return Result.failure(new Data.Builder().putString(KEY_ERROR_MESSAGE, "Carpeta de envío no encontrada").build());
             }
 
             File[] files = folder.listFiles();
             if (files == null || files.length == 0) {
                 Log.d(TAG, "No hay archivos para enviar.");
+                setProgressAsync(createProgressData(0,0,0,0, "No hay archivos para enviar"));
                 return Result.success();
             }
 
+            int totalFiles = files.length;
+            int filesUploadedSuccessfully = 0;
+            int filesProcessed = 0; // Para contar los archivos que intentamos procesar
+
+            // Progreso inicial
+            setProgressAsync(createProgressData(0, filesUploadedSuccessfully, totalFiles - filesUploadedSuccessfully, totalFiles, "Iniciando..."));
+
             // Subir los archivos
             for (File file : files) {
+                filesProcessed++;
                 if (uploadFile(file)) {
+                    filesUploadedSuccessfully++;
                     boolean deleted = file.delete();
                     Log.d(TAG, "Archivo " + file.getName() + (deleted ? " eliminado" : " no eliminado"));
                 } else {
                     Log.e(TAG, "Error al subir: " + file.getName());
                 }
+                int progressPercent = (int) (((float) filesProcessed / totalFiles) * 100);
+                int filesRemaining = totalFiles - filesProcessed;
+
+                Log.d(TAG, "Procesados: " + filesProcessed + "/" + totalFiles +
+                        ", Subidos exitosamente: " + filesUploadedSuccessfully +
+                        ", Progreso: " + progressPercent + "%");
+
+                String statusMessage = filesProcessed < totalFiles ? "Enviando..." : "Completando...";
+                setProgressAsync(createProgressData(progressPercent, filesUploadedSuccessfully, filesRemaining, totalFiles, statusMessage));
+            }
+            if (filesUploadedSuccessfully == totalFiles) {
+                Log.d(TAG, "Todos los " + totalFiles + " archivos enviados exitosamente.");
+                // Progreso final exitoso
+                setProgressAsync(createProgressData(100, filesUploadedSuccessfully, 0, totalFiles, "Completado"));
+                return Result.success();
+            } else if (filesUploadedSuccessfully > 0) {
+                Log.w(TAG, filesUploadedSuccessfully + " de " + totalFiles + " archivos enviados. Algunos fallaron.");
+                // Aún consideramos éxito parcial si algunos se subieron, el progreso lo reflejará.
+                // La UI puede mostrar el estado final.
+                Data outputData = new Data.Builder().putString(KEY_ERROR_MESSAGE, "Algunos archivos no se pudieron subir.").build();
+                setProgressAsync(createProgressData((filesUploadedSuccessfully * 100) / totalFiles, filesUploadedSuccessfully, totalFiles - filesUploadedSuccessfully, totalFiles, "Completado con errores"));
+                return Result.success(outputData); // Éxito, pero con errores reportados
+            } else {
+                Log.e(TAG, "Ningún archivo pudo ser subido de " + totalFiles + " intentos.");
+                Data errorData = new Data.Builder().putString(KEY_ERROR_MESSAGE, "No se pudo subir ningún archivo.").build();
+                setProgressAsync(createProgressData(0, 0, totalFiles, totalFiles, "Error en todos los archivos"));
+                return Result.failure(errorData);
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Error general: " + e.getMessage(), e);
-            return Result.failure();
+            Log.e(TAG, "Error general en doWork: " + e.getMessage(), e);
+            Data errorData = new Data.Builder().putString(KEY_ERROR_MESSAGE, "Error inesperado en el worker.").build();
+            setProgressAsync(createProgressData(0,0,0,0, "Error en worker"));
+            return Result.failure(errorData);
         }
 
-        return Result.success();
+        //return Result.success();
     }
 
     private boolean uploadFile(File file) {
@@ -143,5 +190,14 @@ public class FirebaseWorker extends Worker {
             Log.e(TAG, "Error al subir " + file.getName() + ": " + e.getMessage(), e);
             return false;
         }
+    }
+    private Data createProgressData(int percent, int uploaded, int remaining, int total, String statusMessage) {
+        return new Data.Builder()
+                .putInt(KEY_PROGRESS_PERCENT, percent)
+                .putInt(KEY_FILES_UPLOADED, uploaded)
+                .putInt(KEY_FILES_REMAINING, remaining)
+                .putInt(KEY_TOTAL_FILES, total)
+                .putString("STATUS_MESSAGE", statusMessage) // Mensaje de estado adicional
+                .build();
     }
 }

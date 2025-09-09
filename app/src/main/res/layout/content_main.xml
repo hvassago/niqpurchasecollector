@@ -16,18 +16,6 @@
         tools:layout_editor_absoluteY="0dp"
         tools:showIn="@layout/app_bar_main">
 
-        <fragment
-            android:id="@+id/nav_host_fragment_content_main"
-            android:name="androidx.navigation.fragment.NavHostFragment"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:defaultNavHost="true"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:navGraph="@navigation/mobile_navigation" />
-
         <TextView
             android:id="@+id/textView1"
             android:layout_width="0dp"
@@ -45,11 +33,12 @@
         <RelativeLayout
             android:id="@+id/relativeLayoutCamera"
             android:layout_width="169dp"
-            android:layout_height="158dp"
+            android:layout_height="200dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="42dp"
             android:background="@drawable/rounded_background"
-            android:elevation="4dp"
+            android:elevation="6dp"
+            android:paddingBottom="8dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView1">
 
@@ -65,6 +54,7 @@
                 android:clickable="false"/>
 
             <TextView
+                android:id="@+id/textViewCamera"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton1"
@@ -80,11 +70,12 @@
         <RelativeLayout
             android:id="@+id/relativeLayoutGallery"
             android:layout_width="169dp"
-            android:layout_height="158dp"
+            android:layout_height="200dp"
             android:layout_marginTop="40dp"
             android:layout_marginEnd="16dp"
             android:background="@drawable/rounded_background"
-            android:elevation="4dp"
+            android:elevation="6dp"
+            android:paddingBottom="8dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView1">
 
@@ -96,10 +87,11 @@
                 android:background="@null"
                 android:scaleType="fitCenter"
                 android:padding="16dp"
-                app:srcCompat="@drawable/factura"
+                app:srcCompat="@drawable/galeria"
                 android:clickable="false" />
 
             <TextView
+                android:id="@+id/textViewGallery"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton2"
@@ -115,11 +107,12 @@
         <RelativeLayout
             android:id="@+id/relativeLayoutVoice"
             android:layout_width="169dp"
-            android:layout_height="158dp"
+            android:layout_height="200dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="40dp"
             android:background="@drawable/rounded_background"
-            android:elevation="4dp"
+            android:elevation="6dp"
+            android:paddingBottom="8dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/relativeLayoutCamera">
 
@@ -135,6 +128,7 @@
                 android:clickable="false" />
 
             <TextView
+                android:id="@+id/textViewVoice"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton3"
@@ -150,11 +144,12 @@
         <RelativeLayout
             android:id="@+id/relativeLayoutOther"
             android:layout_width="169dp"
-            android:layout_height="158dp"
+            android:layout_height="200dp"
             android:layout_marginTop="42dp"
             android:layout_marginEnd="16dp"
             android:background="@drawable/rounded_background"
-            android:elevation="4dp"
+            android:elevation="6dp"
+            android:paddingBottom="8dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/relativeLayoutGallery">
 
@@ -170,6 +165,7 @@
                 android:clickable="false" />
 
             <TextView
+                android:id="@+id/textViewOther"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/imageButton4"
@@ -181,6 +177,70 @@
                 android:textSize="16sp"
                 android:clickable="false" />
         </RelativeLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <fragment
+        android:id="@+id/nav_host_fragment_content_main"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:defaultNavHost="true"
+        app:layout_constraintBottom_toTopOf="@+id/progressContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:navGraph="@navigation/mobile_navigation" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/progressContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:padding="8dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible">
+
+        <ProgressBar
+            android:id="@+id/progressBarUploadFooter"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:max="100"
+            android:progress="0"
+            app:layout_constraintEnd_toStartOf="@+id/textViewProgressPercentageFooter"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/textViewFilesStatusFooter"/>
+
+        <TextView
+            android:id="@+id/textViewProgressPercentageFooter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0%"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/progressBarUploadFooter"
+            app:layout_constraintBottom_toBottomOf="@+id/progressBarUploadFooter"/>
+
+        <TextView
+            android:id="@+id/textViewFilesStatusFooter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Esperando envío..."
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurface"
+            android:gravity="center_horizontal"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/progressBarUploadFooter"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

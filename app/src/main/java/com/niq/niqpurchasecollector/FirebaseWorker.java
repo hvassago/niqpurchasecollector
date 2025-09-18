@@ -1,7 +1,15 @@
 package com.niq.niqpurchasecollector;
 
+import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,6 +17,9 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.work.Data;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -20,11 +31,17 @@ import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class FirebaseWorker extends Worker {
 
     private static final String TAG = "FirebaseWorker";
     private static final String REMOTE_PATH = BuildConfig.REMOTE_PATH; //extraer de gradle.properties
+
+    private static final String PREFS_NAME = "UploadPrefs";
+    private static final String KEY_LAST_SUCCESSFUL_UPLOAD = "last_upload_date";
+    private static final String KEY_LAST_NOTIFICATION_DATE = "last_notification_date";
+    private static final int INACTIVITY_DAYS_THRESHOLD = 6;
 
     // Constantes para los datos de progreso (igual que en MainActivity)
     public static final String KEY_PROGRESS_PERCENT = "PROGRESS_PERCENT";
@@ -87,12 +104,16 @@ public class FirebaseWorker extends Worker {
             if (filesUploadedSuccessfully == totalFiles) {
                 Log.d(TAG, "Todos los " + totalFiles + " archivos enviados exitosamente.");
                 // Progreso final exitoso
+                saveSuccessfulUploadDate();
+                //checkAndShowInactivityNotification();
                 setProgressAsync(createProgressData(100, filesUploadedSuccessfully, 0, totalFiles, "Completado"));
                 return Result.success();
             } else if (filesUploadedSuccessfully > 0) {
                 Log.w(TAG, filesUploadedSuccessfully + " de " + totalFiles + " archivos enviados. Algunos fallaron.");
                 // Aún consideramos éxito parcial si algunos se subieron, el progreso lo reflejará.
                 // La UI puede mostrar el estado final.
+                saveSuccessfulUploadDate();
+                //checkAndShowInactivityNotification();
                 Data outputData = new Data.Builder().putString(KEY_ERROR_MESSAGE, "Algunos archivos no se pudieron subir.").build();
                 setProgressAsync(createProgressData((filesUploadedSuccessfully * 100) / totalFiles, filesUploadedSuccessfully, totalFiles - filesUploadedSuccessfully, totalFiles, "Completado con errores"));
                 return Result.success(outputData); // Éxito, pero con errores reportados
@@ -108,6 +129,8 @@ public class FirebaseWorker extends Worker {
             Data errorData = new Data.Builder().putString(KEY_ERROR_MESSAGE, "Error inesperado en el worker.").build();
             setProgressAsync(createProgressData(0,0,0,0, "Error en worker"));
             return Result.failure(errorData);
+        } finally {
+            checkAndShowInactivityNotification();
         }
 
         //return Result.success();
@@ -199,5 +222,68 @@ public class FirebaseWorker extends Worker {
                 .putInt(KEY_TOTAL_FILES, total)
                 .putString("STATUS_MESSAGE", statusMessage) // Mensaje de estado adicional
                 .build();
+    }
+
+    private void saveSuccessfulUploadDate() {
+        SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putLong(KEY_LAST_SUCCESSFUL_UPLOAD, System.currentTimeMillis())
+                .apply();
+    }
+
+    private void checkAndShowInactivityNotification() {
+        SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        long lastUpload = prefs.getLong(KEY_LAST_SUCCESSFUL_UPLOAD, 0);
+        long lastNotification = prefs.getLong(KEY_LAST_NOTIFICATION_DATE, 0);
+        long currentTime = System.currentTimeMillis();
+
+        long daysSinceLastUpload = TimeUnit.MILLISECONDS.toDays(currentTime - lastUpload);
+        long daysSinceLastNotification = TimeUnit.MILLISECONDS.toDays(currentTime - lastNotification);
+
+        if (daysSinceLastUpload >= INACTIVITY_DAYS_THRESHOLD &&
+                daysSinceLastNotification >= INACTIVITY_DAYS_THRESHOLD) {
+
+            showInactivityNotification();
+            prefs.edit()
+                    .putLong(KEY_LAST_NOTIFICATION_DATE, currentTime)
+                    .apply();
+        }
+    }
+
+    private void showInactivityNotification() {
+        Context context = getApplicationContext();
+
+        // Verificar permiso de notificaciones para Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.e(TAG, "No se tiene permiso para mostrar notificaciones");
+                return;
+            }
+        }
+
+        // Crear intent para abrir la app al hacer clic
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context, 0, intent, PendingIntent.FLAG_IMMUTABLE
+        );
+
+        // Crear notificación
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "channel_id")
+                .setSmallIcon(android.R.drawable.ic_dialog_info) // Ícono temporal del sistema
+                .setContentTitle("Recordatorio de compras")
+                .setContentText("Hace una semana que no sube información. ¿Ha realizado compras sin factura?")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+
+        try {
+            notificationManager.notify(1, builder.build());
+        } catch (SecurityException e) {
+            Log.e(TAG, "Error de seguridad al mostrar notificación: " + e.getMessage());
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.niq.niqpurchasecollector;
 
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
@@ -41,6 +43,7 @@ import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
@@ -104,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
         FirebaseApp.initializeApp(this);
         FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.getInstance();
 
-        // SOLUCIÓN: Usar Play Integrity para producción o Debug solo para desarrollo
         if (BuildConfig.DEBUG) {
             firebaseAppCheck.installAppCheckProviderFactory(
                     DebugAppCheckProviderFactory.getInstance()
@@ -116,6 +118,15 @@ public class MainActivity extends AppCompatActivity {
             firebaseAppCheck.installAppCheckProviderFactory(
                     PlayIntegrityAppCheckProviderFactory.getInstance()
             );
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    "channel_id",
+                    "Recordatorios",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
         }
         initializeApp();
         // Continuar después de verificar permisos
@@ -234,45 +245,46 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestAppPermissions() {
+        List<String> permissionsToRequest = new ArrayList<>();
+
+        // Permisos para versiones anteriores a Android 11
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+        }
+
+        // Permisos comunes
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA);
+        }
+        if (checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.INTERNET);
+        }
+
+        // Permiso de notificaciones para Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        // Permiso especial para Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager() ||
-                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-
-                // Pedir permisos especiales
-                Intent getPermissionIntent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                startActivityForResult(getPermissionIntent, REQUEST_CODE_ALL_FILES_ACCESS);
-
-                requestPermissions(
-                        new String[]{
-                                Manifest.permission.RECORD_AUDIO,
-                                Manifest.permission.CAMERA,
-                                Manifest.permission.INTERNET
-                        },
-                        REQUEST_CODE_ALL_FILES_ACCESS
-                );
-            } else {
-                allPermissionsGranted();
+            if (!Environment.isExternalStorageManager()) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
             }
+        }
+
+        // Solicitar permisos normales
+        if (!permissionsToRequest.isEmpty()) {
+            requestPermissions(permissionsToRequest.toArray(new String[0]), REQUEST_CODE_ALL_FILES_ACCESS);
         } else {
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                    checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-
-                requestPermissions(
-                        new String[]{
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                Manifest.permission.RECORD_AUDIO,
-                                Manifest.permission.CAMERA,
-                                Manifest.permission.INTERNET
-                        },
-                        REQUEST_CODE_ALL_FILES_ACCESS
-                );
-            } else {
-                allPermissionsGranted();
-            }
+            allPermissionsGranted();
         }
     }
 

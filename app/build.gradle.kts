@@ -54,7 +54,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)
@@ -68,9 +67,13 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     implementation(libs.apache.commons.net)
-    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0")) // Versión más estable
     implementation("com.google.firebase:firebase-storage")
-    implementation("com.google.firebase:firebase-appcheck-playintegrity:17.3.0")
-    implementation("com.google.firebase:firebase-appcheck-debug:17.3.0")
-    implementation("com.google.firebase:firebase-storage:20.3.0")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")
+
+    // GridLayout
+    implementation("androidx.gridlayout:gridlayout:1.0.0")
 }

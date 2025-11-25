@@ -38,6 +38,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
@@ -46,12 +47,16 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import android.content.Intent;
 import android.provider.Settings;
 import android.provider.MediaStore;
 import android.widget.RelativeLayout;
 
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
@@ -73,6 +78,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.lifecycle.Observer; // Asegúrate que es el de androidx.lifecycle
 import androidx.work.Data;          // Para acceder a los datos de progreso y salida
 import java.util.List;          // Para la lista de WorkInfo
+import com.google.android.material.card.MaterialCardView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -99,6 +105,13 @@ public class MainActivity extends AppCompatActivity {
     private TextView progressTextFooter;
     private TextView filesStatusTextFooter;
     public static final String FIREBASE_WORKER_TAG = "FirebaseWorkerJobTag";
+    
+    // Constante para la ruta de archivos
+    public static final String APP_MEDIA_PATH = "Android/media/com.niq.niqpurchasecollector/recursoscolectados";
+
+    // Executor para operaciones en segundo plano (evita bloquear la UI)
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @SuppressLint("QueryPermissionsNeeded")
     @Override
@@ -348,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
             String imageFileName = smsId + "_" + timeStamp + "_";
-            File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
 
             // Crear directorio si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -391,7 +404,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void createDirectory() {
         // Ruta a Android/media/com.niq.niqpurchasecollector
-        File directory = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+        File directory = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
 
         if (!directory.exists()) {
             if (directory.mkdirs()) {
@@ -422,22 +435,31 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("ImagenGuardada", "Imagen guardada en: " + photoUri.getPath());
             }
         } else if (requestCode == REQUEST_CODE_GALLERY && resultCode == RESULT_OK && data != null) {
-            if (data.getClipData() != null) {
-                // Múltiples imágenes seleccionadas
-                int itemCount = data.getClipData().getItemCount();
-                for (int i = 0; i < itemCount; i++) {
-                    Uri imageUri = data.getClipData().getItemAt(i).getUri();
-                    saveImageGalleryToDirectory(imageUri, i);
+            // Procesar galería en segundo plano
+            executorService.execute(() -> {
+                if (data.getClipData() != null) {
+                    // Múltiples imágenes seleccionadas
+                    int itemCount = data.getClipData().getItemCount();
+                    for (int i = 0; i < itemCount; i++) {
+                        Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                        saveImageGalleryToDirectory(imageUri, i);
+                    }
+                } else if (data.getData() != null) {
+                    // Una sola imagen seleccionada
+                    Uri imageUri = data.getData();
+                    saveImageGalleryToDirectory(imageUri, 0);
                 }
-            } else if (data.getData() != null) {
-                // Una sola imagen seleccionada
-                Uri imageUri = data.getData();
-                saveImageGalleryToDirectory(imageUri, 0);
-            }
+                
+                mainHandler.post(() -> Toast.makeText(MainActivity.this, "Imágenes guardadas y listas para envío", Toast.LENGTH_SHORT).show());
+            });
+            
         } else if (requestCode == REQUEST_CODE_FILE_PICKER && resultCode == RESULT_OK && data != null) {
             Uri fileUri = data.getData();
             if (fileUri != null) {
-                saveFileToStorage(fileUri);
+                executorService.execute(() -> {
+                    saveFileToStorage(fileUri);
+                    mainHandler.post(() -> Toast.makeText(MainActivity.this, "Archivo guardado y listo para envío", Toast.LENGTH_SHORT).show());
+                });
             }
         }
 
@@ -479,7 +501,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void saveFileToStorage(Uri fileUri) {
         try {
-            File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
 
             // Crear la carpeta si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -531,7 +553,7 @@ public class MainActivity extends AppCompatActivity {
     private void saveImageGalleryToDirectory(Uri imageUri, int index) {
         try {
             // Ruta específica del directorio
-            File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
 
             // Crear el directorio si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -591,17 +613,26 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
 
-        RelativeLayout relativeLayoutCamera = findViewById(R.id.relativeLayoutCamera);
+        MaterialCardView relativeLayoutCamera = findViewById(R.id.relativeLayoutCamera);
         relativeLayoutCamera.setOnClickListener(v -> openCamera());
 
-        RelativeLayout relativeLayoutGallery = findViewById(R.id.relativeLayoutGallery);
+        MaterialCardView relativeLayoutGallery = findViewById(R.id.relativeLayoutGallery);
         relativeLayoutGallery.setOnClickListener(v -> openGallery());
 
-        RelativeLayout relativeLayoutVoice = findViewById(R.id.relativeLayoutVoice);
+        MaterialCardView relativeLayoutVoice = findViewById(R.id.relativeLayoutVoice);
         relativeLayoutVoice.setOnClickListener(v -> startRecording());
 
-        RelativeLayout relativeLayoutOther = findViewById(R.id.relativeLayoutOther);
+        MaterialCardView relativeLayoutOther = findViewById(R.id.relativeLayoutOther);
         relativeLayoutOther.setOnClickListener(v -> openFilePicker()); // ⬅️ Agregamos el evento aquí
+    }
+
+    private void animateCard(View card) {
+        card.animate()
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(100)
+                .withEndAction(() -> card.animate().scaleX(1f).scaleY(1f).setDuration(100))
+                .start();
     }
 
     private void openFilePicker() {
@@ -622,54 +653,57 @@ public class MainActivity extends AppCompatActivity {
             if ("image/*".equals(type) || "application/pdf".equals(type)) {
                 Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
                 if (uri != null) {
-                    File mediaDirectory = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+                    executorService.execute(() -> {
+                        File mediaDirectory = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
 
-                    // Verificar y crear directorio si no existe
-                    if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {
-                        Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
-                        //Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // Convertir el archivo recibido a un hash SHA-256
-                    String newFileHash = getFileHash(uri);
-                    if (newFileHash == null) {
-                        //Toast.makeText(this, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // Buscar si ya existe un archivo con el mismo hash en la carpeta destino
-                    if (isDuplicateFile(mediaDirectory, newFileHash)) {
-                        //Toast.makeText(this, "El archivo ya existe, no se guardará duplicado", Toast.LENGTH_SHORT).show();
-                        Log.w("ArchivoGuardado", "Archivo duplicado detectado, no se guardará.");
-                        return;
-                    }
-
-                    // Crear nombre de archivo basado en fecha y tipo
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
-                    String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
-                    String fileName = smsId + "_" + timeStamp + "." + (extension != null ? extension : "dat");
-                    File file = new File(mediaDirectory, fileName);
-
-                    try {
-                        InputStream inputStream = getContentResolver().openInputStream(uri);
-                        OutputStream outputStream = new FileOutputStream(file);
-
-                        byte[] buffer = new byte[1024];
-                        int length;
-                        while ((length = inputStream.read(buffer)) > 0) {
-                            outputStream.write(buffer, 0, length);
+                        // Verificar y crear directorio si no existe
+                        if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {
+                            Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
+                            //Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
+                            return;
                         }
-                        inputStream.close();
-                        outputStream.close();
 
-                        Toast.makeText(this, "El archivo será enviado a NIQ", Toast.LENGTH_SHORT).show();
-                        Log.d("ArchivoGuardado", "Archivo guardado en: " + file.getAbsolutePath());
+                        // Convertir el archivo recibido a un hash SHA-256
+                        String newFileHash = getFileHash(uri);
+                        if (newFileHash == null) {
+                            //Toast.makeText(this, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
 
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        //Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
-                    }
+                        // Buscar si ya existe un archivo con el mismo hash en la carpeta destino
+                        if (isDuplicateFile(mediaDirectory, newFileHash)) {
+                            //Toast.makeText(this, "El archivo ya existe, no se guardará duplicado", Toast.LENGTH_SHORT).show();
+                            Log.w("ArchivoGuardado", "Archivo duplicado detectado, no se guardará.");
+                            mainHandler.post(() -> Toast.makeText(MainActivity.this, "Archivo duplicado, no se guardó", Toast.LENGTH_SHORT).show());
+                            return;
+                        }
+
+                        // Crear nombre de archivo basado en fecha y tipo
+                        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+                        String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
+                        String fileName = smsId + "_" + timeStamp + "." + (extension != null ? extension : "dat");
+                        File file = new File(mediaDirectory, fileName);
+
+                        try {
+                            InputStream inputStream = getContentResolver().openInputStream(uri);
+                            OutputStream outputStream = new FileOutputStream(file);
+
+                            byte[] buffer = new byte[1024];
+                            int length;
+                            while ((length = inputStream.read(buffer)) > 0) {
+                                outputStream.write(buffer, 0, length);
+                            }
+                            inputStream.close();
+                            outputStream.close();
+
+                            mainHandler.post(() -> Toast.makeText(MainActivity.this, "El archivo será enviado a NIQ", Toast.LENGTH_SHORT).show());
+                            Log.d("ArchivoGuardado", "Archivo guardado en: " + file.getAbsolutePath());
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            //Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
             }
         }
@@ -775,9 +809,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scheduleFirebaseWorker() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED) // Requiere conexión a Internet
+                .build();
+
         PeriodicWorkRequest firebaseWorkRequest =
                 new PeriodicWorkRequest.Builder(FirebaseWorker.class, 1, TimeUnit.HOURS) // O tu intervalo
                         .addTag(FIREBASE_WORKER_TAG) // <--- AÑADIR TAG
+                        .setConstraints(constraints) // Añadir restricciones
                         .build();
         Log.d("scheduleFirebaseWorker()", "Programando tarea Firebase con tag: " + FIREBASE_WORKER_TAG);
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
@@ -811,6 +850,11 @@ public class MainActivity extends AppCompatActivity {
             progressTextFooter.setText("0%");
             filesStatusTextFooter.setText("Preparando envío...");
         }
+        
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+                
         WorkManager workManager = WorkManager.getInstance(this);
         Log.d("executeFirebaseNow()", "Ejecutando");
 
@@ -818,6 +862,7 @@ public class MainActivity extends AppCompatActivity {
         OneTimeWorkRequest firebaseWorkRequest =
                 new OneTimeWorkRequest.Builder(FirebaseWorker.class)
                         .addTag(FIREBASE_WORKER_TAG) // <--- AÑADIR TAG
+                        .setConstraints(constraints)
                         .setInitialDelay(1, TimeUnit.SECONDS) // pequeño retraso para evitar problemas de encolamiento
                         .build();
 

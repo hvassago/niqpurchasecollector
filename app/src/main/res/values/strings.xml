@@ -10,4 +10,16 @@
     <string name="menu_home">Home</string>
     <string name="menu_gallery">Gallery</string>
     <string name="menu_slideshow">Slideshow</string>
+
+    <string name="send_invoice_title">Enviar factura de compra a NIQ</string>
+    <string name="from_camera">Enviar desde cámara</string>
+    <string name="from_gallery">Enviar desde galería</string>
+    <string name="from_voice">Enviar nota de voz</string>
+    <string name="from_other">Enviar otro documento</string>
+    <string name="progress_default">0%</string>
+    <string name="waiting_send">Esperando envío...</string>
+    <string name="camera_button_desc">Abrir cámara</string>
+    <string name="gallery_button_desc">Abrir galería</string>
+    <string name="voice_button_desc">Grabar nota de voz</string>
+    <string name="other_button_desc">Seleccionar archivo</string>
 </resources>

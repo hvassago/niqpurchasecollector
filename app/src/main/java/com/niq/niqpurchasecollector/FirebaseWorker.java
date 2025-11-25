@@ -31,6 +31,7 @@ import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 public class FirebaseWorker extends Worker {
@@ -60,7 +61,7 @@ public class FirebaseWorker extends Worker {
 
         try {
             // Verifica si la carpeta existe
-            File folder = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+            File folder = new File(Environment.getExternalStorageDirectory(), MainActivity.APP_MEDIA_PATH);
             if (!folder.exists()) {
                 Log.e(TAG, "Carpeta no existe: " + folder.getAbsolutePath());
                 setProgressAsync(createProgressData(0,0,0,0, "Carpeta de envío no encontrada"));
@@ -73,6 +74,9 @@ public class FirebaseWorker extends Worker {
                 setProgressAsync(createProgressData(0,0,0,0, "No hay archivos para enviar"));
                 return Result.success();
             }
+
+            // Ordenar archivos por nombre (fecha) para mantener secuencia
+            Arrays.sort(files, (f1, f2) -> f1.getName().compareTo(f2.getName()));
 
             int totalFiles = files.length;
             int filesUploadedSuccessfully = 0;
@@ -177,6 +181,10 @@ public class FirebaseWorker extends Worker {
 
             if (parts.length < 2) {
                 Log.e(TAG, "Nombre de archivo inválido: " + fileName);
+                // Eliminar archivo inválido para evitar reintentos infinitos
+                if (file.delete()) {
+                    Log.d(TAG, "Archivo con nombre inválido eliminado: " + fileName);
+                }
                 return false;
             }
 
@@ -237,16 +245,28 @@ public class FirebaseWorker extends Worker {
         long lastNotification = prefs.getLong(KEY_LAST_NOTIFICATION_DATE, 0);
         long currentTime = System.currentTimeMillis();
 
+        // Cálculo de días
         long daysSinceLastUpload = TimeUnit.MILLISECONDS.toDays(currentTime - lastUpload);
         long daysSinceLastNotification = TimeUnit.MILLISECONDS.toDays(currentTime - lastNotification);
 
+        // Usar umbral configurado (6 días)
         if (daysSinceLastUpload >= INACTIVITY_DAYS_THRESHOLD &&
-                daysSinceLastNotification >= INACTIVITY_DAYS_THRESHOLD) {
+                daysSinceLastNotification >= 1) { // Notificar si pasó un día desde la última notificación para no spamear
 
-            showInactivityNotification();
-            prefs.edit()
-                    .putLong(KEY_LAST_NOTIFICATION_DATE, currentTime)
-                    .apply();
+             // Si nunca se ha notificado (lastNotification == 0), daysSinceLastNotification será enorme, así que entra.
+             // Pero si acabamos de notificar, esperamos al menos 1 día para la siguiente.
+
+             // Corrección lógica:
+             // Queremos notificar si pasaron > 6 días desde carga
+             // Y si no hemos notificado hoy.
+             
+             if (currentTime - lastNotification > TimeUnit.DAYS.toMillis(1)) {
+                 showInactivityNotification();
+                 prefs.edit()
+                        .putLong(KEY_LAST_NOTIFICATION_DATE, currentTime)
+                        .apply();
+                 Log.d(TAG, "Notificación de inactividad mostrada.");
+             }
         }
     }
 

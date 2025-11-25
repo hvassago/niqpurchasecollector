@@ -8,21 +8,21 @@
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/app_bar_main">
 
+    <!-- CONTENEDOR PRINCIPAL -->
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_content_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        tools:layout_editor_absoluteX="206dp"
-        tools:layout_editor_absoluteY="0dp"
-        tools:showIn="@layout/app_bar_main">
+        android:layout_height="match_parent">
 
+        <!-- Título -->
         <TextView
             android:id="@+id/textView1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
+            android:layout_marginHorizontal="16dp"
             android:text="Enviar factura de compra a NIQ"
-            android:textAlignment="center"
+            android:gravity="center"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
@@ -30,156 +30,211 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <RelativeLayout
+        <!-- Tarjeta CÁMARA - CORREGIDA -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/relativeLayoutCamera"
-            android:layout_width="169dp"
+            android:layout_width="0dp"
             android:layout_height="200dp"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="42dp"
-            android:background="@drawable/rounded_background"
-            android:elevation="6dp"
-            android:paddingBottom="8dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginEnd="8dp"
+            app:cardElevation="6dp"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textView1">
+            app:layout_constraintEnd_toStartOf="@+id/relativeLayoutGallery"
+            app:layout_constraintTop_toBottomOf="@+id/textView1"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            android:clickable="true"
+            android:focusable="true"
+            app:rippleColor="?attr/colorPrimaryContainer">
 
-            <ImageButton
-                android:id="@+id/imageButton1"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
-                android:adjustViewBounds="false"
-                android:background="@null"
-                android:scaleType="fitCenter"
-                android:padding="16dp"
-                app:srcCompat="@drawable/camara_dslr"
-                android:clickable="false"/>
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
 
-            <TextView
-                android:id="@+id/textViewCamera"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/imageButton1"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="Enviar desde cámara"
-                android:textAlignment="center"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:clickable="false"/>
-        </RelativeLayout>
+                <ImageButton
+                    android:id="@+id/imageButton1"
+                    android:layout_width="match_parent"
+                    android:layout_height="124dp"
+                    android:background="@null"
+                    android:scaleType="fitCenter"
+                    android:padding="16dp"
+                    app:srcCompat="@drawable/camara_dslr"
+                    android:clickable="false"
+                    android:contentDescription="Abrir cámara" />
 
-        <RelativeLayout
+                <TextView
+                    android:id="@+id/textViewCamera"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Enviar desde cámara"
+                    android:textAlignment="center"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="16sp"
+                    android:clickable="false" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Tarjeta GALERÍA - CORREGIDA -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/relativeLayoutGallery"
-            android:layout_width="169dp"
+            android:layout_width="0dp"
             android:layout_height="200dp"
-            android:layout_marginTop="40dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="32dp"
             android:layout_marginEnd="16dp"
-            android:background="@drawable/rounded_background"
-            android:elevation="6dp"
-            android:paddingBottom="8dp"
+            app:cardElevation="6dp"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
+            app:layout_constraintStart_toEndOf="@+id/relativeLayoutCamera"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textView1">
+            app:layout_constraintTop_toBottomOf="@+id/textView1"
+            android:clickable="true"
+            android:focusable="true"
+            app:rippleColor="?attr/colorPrimaryContainer">
 
-            <ImageButton
-                android:id="@+id/imageButton2"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
-                android:adjustViewBounds="false"
-                android:background="@null"
-                android:scaleType="fitCenter"
-                android:padding="16dp"
-                app:srcCompat="@drawable/galeria"
-                android:clickable="false" />
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
 
-            <TextView
-                android:id="@+id/textViewGallery"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/imageButton2"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="Enviar desde galería"
-                android:textAlignment="center"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:clickable="false" />
-        </RelativeLayout>
+                <ImageButton
+                    android:id="@+id/imageButton2"
+                    android:layout_width="match_parent"
+                    android:layout_height="124dp"
+                    android:background="@null"
+                    android:scaleType="fitCenter"
+                    android:padding="16dp"
+                    app:srcCompat="@drawable/galeria"
+                    android:clickable="false"
+                    android:contentDescription="Abrir galería" />
 
-        <RelativeLayout
+                <TextView
+                    android:id="@+id/textViewGallery"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Enviar desde galería"
+                    android:textAlignment="center"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="16sp"
+                    android:clickable="false" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Tarjeta VOZ - CORREGIDA -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/relativeLayoutVoice"
-            android:layout_width="169dp"
+            android:layout_width="0dp"
             android:layout_height="200dp"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="40dp"
-            android:background="@drawable/rounded_background"
-            android:elevation="6dp"
-            android:paddingBottom="8dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="8dp"
+            app:cardElevation="6dp"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/relativeLayoutCamera">
+            app:layout_constraintEnd_toStartOf="@+id/relativeLayoutOther"
+            app:layout_constraintTop_toBottomOf="@+id/relativeLayoutCamera"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            android:clickable="true"
+            android:focusable="true"
+            app:rippleColor="?attr/colorPrimaryContainer">
 
-            <ImageButton
-                android:id="@+id/imageButton3"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
-                android:adjustViewBounds="false"
-                android:background="@null"
-                android:scaleType="fitCenter"
-                android:padding="16dp"
-                app:srcCompat="@drawable/mensaje_de_voz"
-                android:clickable="false" />
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
 
-            <TextView
-                android:id="@+id/textViewVoice"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/imageButton3"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="Enviar nota de voz"
-                android:textAlignment="center"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:clickable="false" />
-        </RelativeLayout>
+                <ImageButton
+                    android:id="@+id/imageButton3"
+                    android:layout_width="match_parent"
+                    android:layout_height="124dp"
+                    android:background="@null"
+                    android:scaleType="fitCenter"
+                    android:padding="16dp"
+                    app:srcCompat="@drawable/mensaje_de_voz"
+                    android:clickable="false"
+                    android:contentDescription="Grabar nota de voz" />
 
-        <RelativeLayout
+                <TextView
+                    android:id="@+id/textViewVoice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Enviar nota de voz"
+                    android:textAlignment="center"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="16sp"
+                    android:clickable="false" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Tarjeta OTROS - CORREGIDA -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/relativeLayoutOther"
-            android:layout_width="169dp"
+            android:layout_width="0dp"
             android:layout_height="200dp"
-            android:layout_marginTop="42dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="24dp"
             android:layout_marginEnd="16dp"
-            android:background="@drawable/rounded_background"
-            android:elevation="6dp"
-            android:paddingBottom="8dp"
+            app:cardElevation="6dp"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
+            app:layout_constraintStart_toEndOf="@+id/relativeLayoutVoice"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/relativeLayoutGallery">
+            app:layout_constraintTop_toBottomOf="@+id/relativeLayoutGallery"
+            android:clickable="true"
+            android:focusable="true"
+            app:rippleColor="?attr/colorPrimaryContainer">
 
-            <ImageButton
-                android:id="@+id/imageButton4"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
-                android:adjustViewBounds="false"
-                android:background="@null"
-                android:scaleType="fitCenter"
-                android:padding="16dp"
-                app:srcCompat="@drawable/tipo_de_archivo"
-                android:clickable="false" />
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
 
-            <TextView
-                android:id="@+id/textViewOther"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/imageButton4"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="Enviar otro documento"
-                android:textAlignment="center"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:clickable="false" />
-        </RelativeLayout>
+                <ImageButton
+                    android:id="@+id/imageButton4"
+                    android:layout_width="match_parent"
+                    android:layout_height="124dp"
+                    android:background="@null"
+                    android:scaleType="fitCenter"
+                    android:padding="16dp"
+                    app:srcCompat="@drawable/tipo_de_archivo"
+                    android:clickable="false"
+                    android:contentDescription="Seleccionar archivo" />
+
+                <TextView
+                    android:id="@+id/textViewOther"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Enviar otro documento"
+                    android:textAlignment="center"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="16sp"
+                    android:clickable="false" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- NavHostFragment -->
     <fragment
         android:id="@+id/nav_host_fragment_content_main"
         android:name="androidx.navigation.fragment.NavHostFragment"
@@ -192,12 +247,13 @@
         app:layout_constraintTop_toTopOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
+    <!-- ProgressContainer -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/progressContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
-        android:padding="8dp"
+        android:background="?attr/colorSurfaceVariant"
+        android:padding="16dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -209,13 +265,12 @@
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
             android:max="100"
             android:progress="0"
+            app:layout_constraintBottom_toTopOf="@+id/textViewFilesStatusFooter"
             app:layout_constraintEnd_toStartOf="@+id/textViewProgressPercentageFooter"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@+id/textViewFilesStatusFooter"/>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/textViewProgressPercentageFooter"
@@ -223,24 +278,24 @@
             android:layout_height="wrap_content"
             android:text="0%"
             android:textSize="14sp"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:layout_constraintBottom_toBottomOf="@+id/progressBarUploadFooter"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/progressBarUploadFooter"
-            app:layout_constraintBottom_toBottomOf="@+id/progressBarUploadFooter"/>
+            app:layout_constraintTop_toTopOf="@+id/progressBarUploadFooter" />
 
         <TextView
             android:id="@+id/textViewFilesStatusFooter"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
             android:text="Esperando envío..."
             android:textSize="12sp"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:gravity="center_horizontal"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/progressBarUploadFooter"
-            app:layout_constraintBottom_toBottomOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/progressBarUploadFooter" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

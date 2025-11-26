@@ -26,6 +26,7 @@ import androidx.work.WorkerParameters;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
@@ -50,6 +51,9 @@ public class FirebaseWorker extends Worker {
     public static final String KEY_FILES_REMAINING = "FILES_REMAINING";
     public static final String KEY_TOTAL_FILES = "TOTAL_FILES";
     public static final String KEY_ERROR_MESSAGE = "ERROR_MESSAGE";
+    private long mTotalBatchSize = 0;
+    private long mAccumulatedBytes = 0;
+    private int mLastPercentReported = -1;
     public FirebaseWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
     }
@@ -77,6 +81,12 @@ public class FirebaseWorker extends Worker {
 
             // Ordenar archivos por nombre (fecha) para mantener secuencia
             Arrays.sort(files, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+            // Calcular tamaño total para progreso
+            mTotalBatchSize = 0;
+            for (File f : files) mTotalBatchSize += f.length();
+            if (mTotalBatchSize == 0) mTotalBatchSize = 1; // Evitar división por cero
+            mAccumulatedBytes = 0;
+            mLastPercentReported = -1;
 
             int totalFiles = files.length;
             int filesUploadedSuccessfully = 0;
@@ -88,14 +98,19 @@ public class FirebaseWorker extends Worker {
             // Subir los archivos
             for (File file : files) {
                 filesProcessed++;
-                if (uploadFile(file)) {
+                // Pasamos contexto para actualizar progreso en tiempo real
+                if (uploadFile(file, filesUploadedSuccessfully, totalFiles, filesProcessed)) {
                     filesUploadedSuccessfully++;
+                    mAccumulatedBytes += file.length(); // Sumar al acumulado global tras éxito
                     boolean deleted = file.delete();
                     Log.d(TAG, "Archivo " + file.getName() + (deleted ? " eliminado" : " no eliminado"));
                 } else {
                     Log.e(TAG, "Error al subir: " + file.getName());
+                    // Si falla, sumamos los bytes de todas formas al acumulado para no retroceder el progreso visual
+                    mAccumulatedBytes += file.length();
                 }
-                int progressPercent = (int) (((float) filesProcessed / totalFiles) * 100);
+                // Calculamos porcentaje final de este paso (asegurando que cuadre con el total)
+                int progressPercent = (int) ((mAccumulatedBytes * 100) / mTotalBatchSize);
                 int filesRemaining = totalFiles - filesProcessed;
 
                 Log.d(TAG, "Procesados: " + filesProcessed + "/" + totalFiles +
@@ -140,7 +155,7 @@ public class FirebaseWorker extends Worker {
         //return Result.success();
     }
 
-    private boolean uploadFile(File file) {
+    private boolean uploadFile(File file, int currentSuccessCount, int totalFiles, int currentFileIndex) {
         try {
             // Validación de tamaño: 15MB
             long fileSizeInBytes = file.length();
@@ -205,6 +220,20 @@ public class FirebaseWorker extends Worker {
 
             // Subida
             UploadTask uploadTask = storageRef.putFile(Uri.fromFile(file));
+
+            // Listener para progreso en tiempo real (byte a byte)
+            uploadTask.addOnProgressListener(snapshot -> {
+                long bytesTransferredThisFile = snapshot.getBytesTransferred();
+                long currentGlobalBytes = mAccumulatedBytes + bytesTransferredThisFile;
+                int percent = (int) ((currentGlobalBytes * 100) / mTotalBatchSize);
+
+                // Actualizar solo si el porcentaje cambia
+                if (percent > mLastPercentReported) {
+                    mLastPercentReported = percent;
+                    String status = "Enviando archivo " + currentFileIndex + " de " + totalFiles + "...";
+                    setProgressAsync(createProgressData(percent, currentSuccessCount, totalFiles - currentSuccessCount, totalFiles, status));
+                }
+            });
 
             // Bloquear hasta que finalice
             Tasks.await(uploadTask);

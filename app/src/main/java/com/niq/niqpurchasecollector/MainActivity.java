@@ -225,6 +225,7 @@ public class MainActivity extends AppCompatActivity {
                                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                     if (progressContainer != null) progressContainer.setVisibility(View.GONE);
                                 }, 5000);
+                                updateLastSyncDate(); // Actualizar fecha visualm
 
                             } else if (relevantWorkInfo.getState() == WorkInfo.State.FAILED) {
                                 if (progressContainer != null) progressContainer.setVisibility(View.VISIBLE); // Mostrar estado final
@@ -748,6 +749,22 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    private void updateLastSyncDate() {
+        // Usamos "UploadPrefs" que es el mismo nombre definido en FirebaseWorker
+        SharedPreferences prefs = getSharedPreferences("UploadPrefs", MODE_PRIVATE);
+        long lastUpload = prefs.getLong("last_upload_date", 0);
+        TextView tvLastSync = findViewById(R.id.textViewLastSync);
+
+        if (tvLastSync != null) {
+            if (lastUpload > 0) {
+                String date = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(new Date(lastUpload));
+                tvLastSync.setText("Última sincronización: " + date);
+                tvLastSync.setVisibility(View.VISIBLE);
+            } else {
+                tvLastSync.setText("Sin sincronizaciones previas");
+            }
+        }
+    }
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -781,6 +798,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         handleIntent(); // Vuelve a verificar al regresar a la app
         observeFirebaseWorker();
+        updateLastSyncDate();
     }
 
     @Override

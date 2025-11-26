@@ -1,8 +1,8 @@
 package com.niq.niqpurchasecollector;
 
 import android.Manifest;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
+//import android.app.NotificationChannel;
+//import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -26,13 +26,14 @@ import androidx.work.WorkerParameters;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.OnProgressListener;
+//import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
-import java.io.IOException;
+//import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
 
 public class FirebaseWorker extends Worker {
@@ -80,7 +81,7 @@ public class FirebaseWorker extends Worker {
             }
 
             // Ordenar archivos por nombre (fecha) para mantener secuencia
-            Arrays.sort(files, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+            Arrays.sort(files, Comparator.comparing(File::getName));
             // Calcular tamaño total para progreso
             mTotalBatchSize = 0;
             for (File f : files) mTotalBatchSize += f.length();
@@ -322,7 +323,7 @@ public class FirebaseWorker extends Worker {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "channel_id")
                 .setSmallIcon(android.R.drawable.ic_dialog_info) // Ícono temporal del sistema
                 .setContentTitle("Recordatorio de compras")
-                .setContentText("Hace una semana que no sube información. ¿Ha realizado compras sin factura?")
+                .setContentText("Notificación Nielsen: Si ha realizado compras y no le han dado facturas por favor ayudenos subiendo la información.")
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);

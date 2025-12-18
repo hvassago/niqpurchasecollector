@@ -66,7 +66,7 @@ public class FirebaseWorker extends Worker {
 
         try {
             // Verifica si la carpeta existe
-            File folder = new File(Environment.getExternalStorageDirectory(), MainActivity.APP_MEDIA_PATH);
+            File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), MainActivity.APP_MEDIA_PATH);
             if (!folder.exists()) {
                 Log.e(TAG, "Carpeta no existe: " + folder.getAbsolutePath());
                 setProgressAsync(createProgressData(0,0,0,0, "Carpeta de envío no encontrada"));

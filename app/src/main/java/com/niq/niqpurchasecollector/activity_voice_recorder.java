@@ -179,8 +179,8 @@ public class activity_voice_recorder extends AppCompatActivity {
             return;
         }
 
-        // 📂 Ruta de destino
-        File storageDir = new File(Environment.getExternalStorageDirectory(), "Android/media/com.niq.niqpurchasecollector/recursoscolectados");
+        // 📂 Ruta de destino en Documents
+        File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), MainActivity.APP_MEDIA_PATH);
 
         // 🛠️ Crear la carpeta si no existe
         if (!storageDir.exists() && !storageDir.mkdirs()) {

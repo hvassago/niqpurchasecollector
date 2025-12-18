@@ -106,8 +106,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView filesStatusTextFooter;
     public static final String FIREBASE_WORKER_TAG = "FirebaseWorkerJobTag";
     
-    // Constante para la ruta de archivos
-    public static final String APP_MEDIA_PATH = "Android/media/com.niq.niqpurchasecollector/recursoscolectados";
+    // Constante para la ruta de archivos en Documents con subcarpeta específica
+    public static final String APP_MEDIA_PATH = "NIQ/RecursosColectados";
 
     // Executor para operaciones en segundo plano (evita bloquear la UI)
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -120,7 +120,11 @@ public class MainActivity extends AppCompatActivity {
         FirebaseApp.initializeApp(this);
         FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.getInstance();
 
-        if (BuildConfig.DEBUG) {
+        // Para desarrollo usar Debug App Check, para producción usar Play Integrity
+        // Puedes cambiar esto manualmente según necesites
+        boolean isDebugMode = true; // Cambiar a false para producción
+        
+        if (isDebugMode) {
             firebaseAppCheck.installAppCheckProviderFactory(
                     DebugAppCheckProviderFactory.getInstance()
             );
@@ -286,14 +290,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Permiso especial para Android 11+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
-            }
-        }
-
         // Solicitar permisos normales
         if (!permissionsToRequest.isEmpty()) {
             requestPermissions(permissionsToRequest.toArray(new String[0]), REQUEST_CODE_ALL_FILES_ACCESS);
@@ -338,16 +334,23 @@ public class MainActivity extends AppCompatActivity {
     private void openCamera() {
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
-        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
-            // Crear archivo donde se guardará la imagen
-            File photoFile = createImageFile();
-            if (photoFile != null) {
-                photoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", photoFile);
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        // Crear archivo donde se guardará la imagen
+        File photoFile = createImageFile();
+        if (photoFile != null) {
+            photoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", photoFile);
+            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            
+            // Para Android 11+, usar el método moderno sin verificar resolveActivity
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
+            } else {
+                // Para versiones anteriores, mantener la verificación tradicional
+                if (cameraIntent.resolveActivity(getPackageManager()) != null) {
+                    startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
+                } else {
+                    Toast.makeText(this, "No se encontró aplicación de cámara", Toast.LENGTH_SHORT).show();
+                }
             }
-        } else {
-            Toast.makeText(this, "No se encontró aplicación de cámara", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -362,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
             String imageFileName = smsId + "_" + timeStamp + "_";
-            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
+            File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
 
             // Crear directorio si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -404,8 +407,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void createDirectory() {
-        // Ruta a Android/media/com.niq.niqpurchasecollector
-        File directory = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
+        // Ruta a Documents/NIQPurchaseCollector/recursoscolectados
+        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
 
         if (!directory.exists()) {
             if (directory.mkdirs()) {
@@ -423,13 +426,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == REQUEST_CODE_ALL_FILES_ACCESS) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                allPermissionsGranted();  // Llamamos a la función cuando se conceda el permiso
-            } else {
-                //Toast.makeText(this, "Permiso para acceder a todos los archivos no otorgado", Toast.LENGTH_SHORT).show();
-            }
-        } else if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
             // Imagen capturada y guardada correctamente
             if (photoUri != null) {
                 //Toast.makeText(this, "Imagen guardada correctamente en: " + photoUri.getPath(), Toast.LENGTH_SHORT).show();
@@ -472,8 +469,7 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean checkAllPermissionsGranted() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager() &&
-                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+            return checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
                     checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
                     checkSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED;
         } else {
@@ -502,7 +498,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void saveFileToStorage(Uri fileUri) {
         try {
-            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
+            File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
 
             // Crear la carpeta si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -554,7 +550,7 @@ public class MainActivity extends AppCompatActivity {
     private void saveImageGalleryToDirectory(Uri imageUri, int index) {
         try {
             // Ruta específica del directorio
-            File storageDir = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
+            File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
 
             // Crear el directorio si no existe
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -655,7 +651,7 @@ public class MainActivity extends AppCompatActivity {
                 Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
                 if (uri != null) {
                     executorService.execute(() -> {
-                        File mediaDirectory = new File(Environment.getExternalStorageDirectory(), APP_MEDIA_PATH);
+                        File mediaDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
 
                         // Verificar y crear directorio si no existe
                         if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {

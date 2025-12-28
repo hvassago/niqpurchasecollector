@@ -647,66 +647,97 @@ public class MainActivity extends AppCompatActivity {
         smsId = sharedPreferences.getString("smsid", "");
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
-            if ("image/*".equals(type) || "application/pdf".equals(type)) {
-                Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-                if (uri != null) {
-                    executorService.execute(() -> {
-                        File mediaDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
-
-                        // Verificar y crear directorio si no existe
-                        if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {
-                            Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
-                            //Toast.makeText(this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show();
-                            return;
+            // Aceptar cualquier tipo de archivo, no solo imágenes y PDFs
+            Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (uri != null) {
+                executorService.execute(() -> {
+                    processSharedFile(uri, 0, 1);
+                });
+            }
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action) && type != null) {
+            // Manejar múltiples archivos compartidos
+            ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (uris != null && !uris.isEmpty()) {
+                executorService.execute(() -> {
+                    int totalFiles = uris.size();
+                    for (int i = 0; i < totalFiles; i++) {
+                        Uri uri = uris.get(i);
+                        if (uri != null) {
+                            processSharedFile(uri, i, totalFiles);
                         }
-
-                        // Convertir el archivo recibido a un hash SHA-256
-                        String newFileHash = getFileHash(uri);
-                        if (newFileHash == null) {
-                            //Toast.makeText(this, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        // Buscar si ya existe un archivo con el mismo hash en la carpeta destino
-                        if (isDuplicateFile(mediaDirectory, newFileHash)) {
-                            //Toast.makeText(this, "El archivo ya existe, no se guardará duplicado", Toast.LENGTH_SHORT).show();
-                            Log.w("ArchivoGuardado", "Archivo duplicado detectado, no se guardará.");
-                            mainHandler.post(() -> Toast.makeText(MainActivity.this, "Archivo duplicado, no se guardó", Toast.LENGTH_SHORT).show());
-                            return;
-                        }
-
-                        // Crear nombre de archivo basado en fecha y tipo
-                        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
-                        String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
-                        String fileName = smsId + "_" + timeStamp + "." + (extension != null ? extension : "dat");
-                        File file = new File(mediaDirectory, fileName);
-
-                        try {
-                            InputStream inputStream = getContentResolver().openInputStream(uri);
-                            OutputStream outputStream = new FileOutputStream(file);
-
-                            byte[] buffer = new byte[1024];
-                            int length;
-                            while ((length = inputStream.read(buffer)) > 0) {
-                                outputStream.write(buffer, 0, length);
-                            }
-                            inputStream.close();
-                            outputStream.close();
-
-                            mainHandler.post(() -> Toast.makeText(MainActivity.this, "El archivo será enviado a NIQ", Toast.LENGTH_SHORT).show());
-                            Log.d("ArchivoGuardado", "Archivo guardado en: " + file.getAbsolutePath());
-
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            //Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show();
-                        }
+                    }
+                    
+                    // Ejecutar el worker después de procesar todos los archivos
+                    mainHandler.post(() -> {
+                        Log.d("handleIntent", "Ejecutando FirebaseWorker después de guardar múltiples archivos compartidos");
+                        executeFirebaseNow();
                     });
-                }
+                });
             }
         }
 
         // Evitar que la intención se procese varias veces
         intent.setAction(null);
+    }
+
+    private void processSharedFile(Uri uri, int index, int totalFiles) {
+        File mediaDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), APP_MEDIA_PATH);
+
+        // Verificar y crear directorio si no existe
+        if (!mediaDirectory.exists() && !mediaDirectory.mkdirs()) {
+            Log.e("Directorio", "Error al crear la carpeta: " + mediaDirectory.getAbsolutePath());
+            mainHandler.post(() -> Toast.makeText(MainActivity.this, "No se pudo crear la carpeta para guardar los archivos", Toast.LENGTH_SHORT).show());
+            return;
+        }
+
+        // Convertir el archivo recibido a un hash SHA-256
+        String newFileHash = getFileHash(uri);
+        if (newFileHash == null) {
+            mainHandler.post(() -> Toast.makeText(MainActivity.this, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show());
+            return;
+        }
+
+        // Buscar si ya existe un archivo con el mismo hash en la carpeta destino
+        if (isDuplicateFile(mediaDirectory, newFileHash)) {
+            Log.w("ArchivoGuardado", "Archivo duplicado detectado, no se guardará.");
+            mainHandler.post(() -> Toast.makeText(MainActivity.this, "Archivo duplicado, no se guardó", Toast.LENGTH_SHORT).show());
+            return;
+        }
+
+        // Crear nombre de archivo basado en fecha y tipo
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
+        String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(getContentResolver().getType(uri));
+        String fileName = smsId + "_" + timeStamp + (totalFiles > 1 ? "_" + index : "") + "." + (extension != null ? extension : "dat");
+        File file = new File(mediaDirectory, fileName);
+
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            OutputStream outputStream = new FileOutputStream(file);
+
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, length);
+            }
+            inputStream.close();
+            outputStream.close();
+
+            mainHandler.post(() -> Toast.makeText(MainActivity.this, 
+                "Archivo " + (index + 1) + " de " + totalFiles + " guardado", Toast.LENGTH_SHORT).show());
+            Log.d("ArchivoGuardado", "Archivo guardado en: " + file.getAbsolutePath());
+
+            // Si es un solo archivo, ejecutar el worker inmediatamente
+            if (totalFiles == 1) {
+                mainHandler.post(() -> {
+                    Log.d("handleIntent", "Ejecutando FirebaseWorker después de guardar archivo compartido");
+                    executeFirebaseNow();
+                });
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            mainHandler.post(() -> Toast.makeText(MainActivity.this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show());
+        }
     }
 
     private String getFileHash(Uri uri) {
@@ -766,27 +797,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);  // Actualizar el intent
-        processIntent(intent);  // Procesar el nuevo intent
-    }
-
-    // Método unificado para manejar todos los intents
-    private void processIntent(Intent intent) {
-        if (intent == null) return;
-
-        // Caso 1: Ejecutar FTP desde otra actividad
-        if (intent.hasExtra("TRIGGER_Firebase")) {
-            //executeFTPNow();
-            executeFirebaseNow();
-            return;
-        }
-
-        // Caso 2: Archivo compartido desde otra app
-        String action = intent.getAction();
-        String type = intent.getType();
-
-        if (Intent.ACTION_SEND.equals(action) && type != null) {
-            handleIntent();
-        }
+        handleIntent();  // Procesar el nuevo intent directamente con handleIntent
     }
 
     @Override
